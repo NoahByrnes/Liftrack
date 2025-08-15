@@ -11,6 +11,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var selectedTab = 0
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -35,6 +36,8 @@ struct ContentView: View {
             ModernTabBar(selectedTab: $selectedTab)
         }
         .ignoresSafeArea(edges: .bottom)
+        .preferredColorScheme(settings.appearanceMode.colorScheme)
+        .tint(settings.accentColor.color)
         .onAppear {
             DataSeeder.seedExercisesIfNeeded(context: modelContext)
         }
