@@ -8,62 +8,165 @@ struct TemplatesView: View {
     
     var body: some View {
         NavigationStack {
-            List {
-                if templates.isEmpty {
-                    ContentUnavailableView(
-                        "No Workout Templates",
-                        systemImage: "list.bullet",
-                        description: Text("Create your first workout template to get started")
-                    )
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(templates) { template in
-                        NavigationLink(destination: TemplateDetailView(template: template)) {
-                            TemplateRow(template: template)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Templates")
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                            Text("\(templates.count) workout plans")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        
+                        Button(action: { 
+                            showingCreateTemplate = true
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.purple)
+                                .symbolEffect(.pulse)
                         }
                     }
-                    .onDelete(perform: deleteTemplates)
-                }
-            }
-            .navigationTitle("Templates")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingCreateTemplate = true }) {
-                        Image(systemName: "plus")
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+                    
+                    // Templates Grid
+                    if templates.isEmpty {
+                        EmptyStateView()
+                            .padding(.top, 100)
+                    } else {
+                        LazyVStack(spacing: 16) {
+                            ForEach(templates) { template in
+                                TemplateCard(template: template, modelContext: modelContext)
+                                    .transition(.asymmetric(
+                                        insertion: .scale.combined(with: .opacity),
+                                        removal: .scale.combined(with: .opacity)
+                                    ))
+                            }
+                        }
+                        .padding(.horizontal)
                     }
                 }
+                .padding(.bottom, 100)
             }
+            .background(Color(.systemGroupedBackground))
             .sheet(isPresented: $showingCreateTemplate) {
                 CreateTemplateView()
             }
         }
     }
+}
+
+struct TemplateCard: View {
+    let template: WorkoutTemplate
+    let modelContext: ModelContext
+    @State private var isPressed = false
+    @State private var showingDeleteAlert = false
     
-    private func deleteTemplates(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(templates[index])
+    var body: some View {
+        NavigationLink(destination: TemplateDetailView(template: template)) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(template.name)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 16) {
+                            Label("\(template.exercises.count) exercises", systemImage: "figure.strengthtraining.traditional")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                            
+                            if let lastUsed = template.lastUsedAt {
+                                Label(lastUsed.formatted(.relative(presentation: .named)), systemImage: "clock")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.purple.opacity(0.8))
+                }
+                
+                // Exercise preview
+                if !template.exercises.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(template.exercises.prefix(3).sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
+                            Text(exercise.exercise.name)
+                                .font(.system(size: 12, weight: .medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.purple.opacity(0.1))
+                                .foregroundColor(.purple)
+                                .clipShape(Capsule())
+                        }
+                        
+                        if template.exercises.count > 3 {
+                            Text("+\(template.exercises.count - 3)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+            )
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .contextMenu {
+            Button(role: .destructive) {
+                showingDeleteAlert = true
+            } label: {
+                Label("Delete Template", systemImage: "trash")
             }
         }
+        .alert("Delete Template?", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                withAnimation(.spring()) {
+                    modelContext.delete(template)
+                    try? modelContext.save()
+                }
+            }
+        } message: {
+            Text("This will permanently delete the template.")
+        }
+        .onLongPressGesture(minimumDuration: 0.1, maximumDistance: .infinity, pressing: { pressing in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isPressed = pressing
+            }
+        }, perform: {})
     }
 }
 
-struct TemplateRow: View {
-    let template: WorkoutTemplate
-    
+struct EmptyStateView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(template.name)
-                .font(.headline)
+        VStack(spacing: 20) {
+            Image(systemName: "square.stack.3d.up.slash")
+                .font(.system(size: 60))
+                .foregroundColor(.purple.opacity(0.5))
             
-            if !template.exercises.isEmpty {
-                Text(template.exercises.prefix(3).map { $0.exercise.name }.joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
+            Text("No Templates Yet")
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+            
+            Text("Create your first workout template\nto get started")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
-        .padding(.vertical, 4)
     }
 }
 

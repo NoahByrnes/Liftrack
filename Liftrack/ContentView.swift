@@ -13,32 +13,28 @@ struct ContentView: View {
     @State private var selectedTab = 0
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            TemplatesView()
-                .tabItem {
-                    Label("Templates", systemImage: "list.bullet")
+        ZStack(alignment: .bottom) {
+            // Main content
+            Group {
+                switch selectedTab {
+                case 0:
+                    TemplatesView()
+                case 1:
+                    WorkoutView()
+                case 2:
+                    HistoryView()
+                case 3:
+                    ProfileView()
+                default:
+                    TemplatesView()
                 }
-                .tag(0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            WorkoutView()
-                .tabItem {
-                    Label("Workout", systemImage: "figure.strengthtraining.traditional")
-                }
-                .tag(1)
-            
-            HistoryView()
-                .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
-                }
-                .tag(2)
-            
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.circle")
-                }
-                .tag(3)
+            // Custom tab bar
+            ModernTabBar(selectedTab: $selectedTab)
         }
-        .tint(.purple)
+        .ignoresSafeArea(edges: .bottom)
         .onAppear {
             DataSeeder.seedExercisesIfNeeded(context: modelContext)
         }
