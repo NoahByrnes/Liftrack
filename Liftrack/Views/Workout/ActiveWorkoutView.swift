@@ -54,7 +54,7 @@ struct ActiveWorkoutView: View {
                                 hasStartedWorkout = true
                                 startWorkoutTimer()
                             }
-                            startRestTimer(seconds: exercise.exercise.defaultRestSeconds)
+                            startRestTimer(seconds: exercise.restSeconds)
                         })
                     }
                     
@@ -222,7 +222,11 @@ struct ActiveWorkoutView: View {
     
     private func addExercise(_ exercise: Exercise) {
         let newIndex = (session.exercises.map { $0.orderIndex }.max() ?? -1) + 1
-        let sessionExercise = SessionExercise(exercise: exercise, orderIndex: newIndex)
+        let sessionExercise = SessionExercise(
+            exercise: exercise, 
+            orderIndex: newIndex,
+            customRestSeconds: nil  // Use default from exercise
+        )
         
         for i in 1...3 {
             let set = WorkoutSet(setNumber: i)
@@ -260,7 +264,7 @@ struct ExerciseCard: View {
                     HStack(spacing: 4) {
                         Image(systemName: "timer")
                             .font(.system(size: 11))
-                        Text("Rest: \(formatRestTime(exercise.exercise.defaultRestSeconds))")
+                        Text("Rest: \(formatRestTime(exercise.restSeconds))")
                             .font(.system(size: 12))
                     }
                     .foregroundColor(.secondary)

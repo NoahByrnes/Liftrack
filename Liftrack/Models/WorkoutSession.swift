@@ -37,14 +37,20 @@ final class SessionExercise {
     var orderIndex: Int
     @Relationship(deleteRule: .cascade) var sets: [WorkoutSet]
     var exercise: Exercise
+    var customRestSeconds: Int?
     
-    init(exercise: Exercise, orderIndex: Int) {
+    init(exercise: Exercise, orderIndex: Int, customRestSeconds: Int? = nil) {
         self.id = UUID()
         self.exerciseId = exercise.id
         self.exerciseName = exercise.name
         self.orderIndex = orderIndex
         self.sets = []
         self.exercise = exercise
+        self.customRestSeconds = customRestSeconds
+    }
+    
+    var restSeconds: Int {
+        customRestSeconds ?? exercise.defaultRestSeconds
     }
 }
 

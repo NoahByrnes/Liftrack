@@ -35,7 +35,11 @@ struct WorkoutView: View {
         
         if let template = template {
             for (index, workoutExercise) in template.exercises.enumerated() {
-                let sessionExercise = SessionExercise(exercise: workoutExercise.exercise, orderIndex: index)
+                let sessionExercise = SessionExercise(
+                    exercise: workoutExercise.exercise, 
+                    orderIndex: index,
+                    customRestSeconds: workoutExercise.customRestSeconds
+                )
                 
                 for setNumber in 1...workoutExercise.targetSets {
                     let set = WorkoutSet(
