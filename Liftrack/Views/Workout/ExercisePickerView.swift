@@ -6,6 +6,7 @@ struct ExercisePickerView: View {
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @State private var searchText = ""
     @State private var showingCreateExercise = false
+    @State private var selectedExercises: Set<Exercise> = []
     let onSelect: (Exercise) -> Void
     
     var filteredExercises: [Exercise] {
@@ -20,13 +21,19 @@ struct ExercisePickerView: View {
         NavigationStack {
             List {
                 ForEach(filteredExercises) { exercise in
-                    Button(action: { onSelect(exercise) }) {
+                    Button(action: { 
+                        if selectedExercises.contains(exercise) {
+                            selectedExercises.remove(exercise)
+                        } else {
+                            selectedExercises.insert(exercise)
+                        }
+                    }) {
                         HStack {
                             Text(exercise.name)
                                 .foregroundColor(.primary)
                             Spacer()
-                            Image(systemName: "plus.circle")
-                                .foregroundColor(.purple)
+                            Image(systemName: selectedExercises.contains(exercise) ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(selectedExercises.contains(exercise) ? .purple : .secondary)
                         }
                     }
                 }
@@ -41,15 +48,27 @@ struct ExercisePickerView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create New") {
-                        showingCreateExercise = true
+                    if selectedExercises.isEmpty {
+                        Button("Create New") {
+                            showingCreateExercise = true
+                        }
+                        .foregroundColor(.purple)
+                    } else {
+                        Button("Add (\(selectedExercises.count))") {
+                            for exercise in selectedExercises {
+                                onSelect(exercise)
+                            }
+                            dismiss()
+                        }
+                        .foregroundColor(.purple)
+                        .fontWeight(.semibold)
                     }
-                    .foregroundColor(.purple)
                 }
             }
             .sheet(isPresented: $showingCreateExercise) {
                 CreateExerciseView { newExercise in
                     onSelect(newExercise)
+                    dismiss()
                 }
             }
         }

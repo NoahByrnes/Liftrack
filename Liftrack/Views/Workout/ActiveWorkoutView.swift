@@ -3,21 +3,40 @@ import SwiftData
 
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     let session: WorkoutSession
     @State private var elapsedTime = 0
     @State private var timer: Timer?
     @State private var showingAddExercise = false
     @State private var showingRestTimer = false
     @State private var restSeconds = 90
+    @State private var showingCancelAlert = false
+    @State private var hasStartedWorkout = false
+    @State private var currentRestTime = 0
+    @State private var restTimer: Timer?
+    @State private var showRestBar = false
+    @State private var restTimeRemaining = 0
     
     var body: some View {
         VStack(spacing: 0) {
             // Timer Header
             HStack {
-                Image(systemName: "timer")
-                Text(formatTime(elapsedTime))
-                    .font(.system(.title3, design: .monospaced))
+                Button(action: { showingCancelAlert = true }) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 20))
+                }
+                
                 Spacer()
+                
+                HStack(spacing: 8) {
+                    Image(systemName: "timer")
+                    Text(formatTime(elapsedTime))
+                        .font(.system(.title3, design: .monospaced))
+                }
+                
+                Spacer()
+                
                 Button("Finish") {
                     finishWorkout()
                 }
@@ -31,7 +50,11 @@ struct ActiveWorkoutView: View {
                 VStack(spacing: 16) {
                     ForEach(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
                         ExerciseCard(exercise: exercise, onSetComplete: {
-                            showingRestTimer = true
+                            if !hasStartedWorkout {
+                                hasStartedWorkout = true
+                                startWorkoutTimer()
+                            }
+                            startRestTimer(seconds: exercise.exercise.defaultRestSeconds)
                         })
                     }
                     
@@ -48,24 +71,50 @@ struct ActiveWorkoutView: View {
                 .padding(.vertical)
             }
             
-            // Bottom tools
-            HStack(spacing: 20) {
-                Button(action: { showingRestTimer = true }) {
-                    Label("Rest Timer", systemImage: "timer")
-                        .font(.footnote)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(20)
+            // Rest timer bar
+            if showRestBar {
+                VStack(spacing: 0) {
+                    Divider()
+                    
+                    HStack {
+                        Image(systemName: "timer")
+                            .foregroundColor(.purple)
+                        
+                        Text("Rest: \(formatRestTime(restTimeRemaining))")
+                            .font(.system(.body, design: .monospaced))
+                        
+                        Spacer()
+                        
+                        Button(action: { 
+                            showingRestTimer = true 
+                        }) {
+                            Text("Expand")
+                                .font(.footnote)
+                                .foregroundColor(.purple)
+                        }
+                        
+                        Button(action: { 
+                            endRestTimer()
+                        }) {
+                            Text("Skip")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
                 }
-                
-                Spacer()
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .padding()
         }
         .navigationBarHidden(true)
-        .onAppear {
-            startTimer()
+        .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
+            Button("Keep Going", role: .cancel) { }
+            Button("Cancel Workout", role: .destructive) {
+                cancelWorkout()
+            }
+        } message: {
+            Text("Are you sure you want to cancel this workout? Your progress will not be saved.")
         }
         .onDisappear {
             timer?.invalidate()
@@ -73,7 +122,6 @@ struct ActiveWorkoutView: View {
         .sheet(isPresented: $showingAddExercise) {
             ExercisePickerView { exercise in
                 addExercise(exercise)
-                showingAddExercise = false
             }
         }
         .sheet(isPresented: $showingRestTimer) {
@@ -81,10 +129,41 @@ struct ActiveWorkoutView: View {
         }
     }
     
-    private func startTimer() {
+    private func startWorkoutTimer() {
+        guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             elapsedTime += 1
         }
+    }
+    
+    private func startRestTimer(seconds: Int? = nil) {
+        restTimeRemaining = seconds ?? restSeconds
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showRestBar = true
+        }
+        
+        restTimer?.invalidate()
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if restTimeRemaining > 0 {
+                restTimeRemaining -= 1
+            } else {
+                endRestTimer()
+            }
+        }
+    }
+    
+    private func endRestTimer() {
+        restTimer?.invalidate()
+        restTimer = nil
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showRestBar = false
+        }
+    }
+    
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", mins, secs)
     }
     
     private func formatTime(_ seconds: Int) -> String {
@@ -102,7 +181,18 @@ struct ActiveWorkoutView: View {
     private func finishWorkout() {
         session.completedAt = Date()
         timer?.invalidate()
+        restTimer?.invalidate()
         try? modelContext.save()
+        dismiss()
+    }
+    
+    private func cancelWorkout() {
+        timer?.invalidate()
+        restTimer?.invalidate()
+        // Delete the session without saving completion
+        modelContext.delete(session)
+        try? modelContext.save()
+        dismiss()
     }
     
     private func addExercise(_ exercise: Exercise) {

@@ -11,7 +11,11 @@ struct CreateTemplateView: View {
     struct TempExercise: Identifiable {
         let id = UUID()
         let exercise: Exercise
-        var sets: Int = 3
+        var sets: [TempSet] = [TempSet(), TempSet(), TempSet()]
+    }
+    
+    struct TempSet: Identifiable {
+        let id = UUID()
         var reps: Int = 10
         var weight: Double = 0
     }
@@ -24,33 +28,95 @@ struct CreateTemplateView: View {
                 }
                 
                 Section("Exercises") {
-                    ForEach(exercises) { tempExercise in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(tempExercise.exercise.name)
-                                .font(.headline)
-                            
+                    ForEach($exercises) { $tempExercise in
+                        VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Label("\(tempExercise.sets) sets", systemImage: "number")
-                                    .font(.caption)
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 18))
+                                
+                                Text(tempExercise.exercise.name)
+                                    .font(.system(size: 17, weight: .semibold))
+                                
                                 Spacer()
-                                Label("\(tempExercise.reps) reps", systemImage: "repeat")
-                                    .font(.caption)
-                                if tempExercise.weight > 0 {
-                                    Label("\(Int(tempExercise.weight)) lbs", systemImage: "scalemass")
-                                        .font(.caption)
+                                
+                                Menu {
+                                    Button("Add Set") {
+                                        tempExercise.sets.append(TempSet())
+                                    }
+                                    if tempExercise.sets.count > 1 {
+                                        Button("Remove Last Set", role: .destructive) {
+                                            tempExercise.sets.removeLast()
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.purple)
                                 }
                             }
-                            .foregroundColor(.secondary)
+                            
+                            VStack(spacing: 10) {
+                                ForEach(Array(tempExercise.sets.enumerated()), id: \.element.id) { index, _ in
+                                    HStack(spacing: 12) {
+                                        Text("Set \(index + 1)")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 50, alignment: .leading)
+                                        
+                                        TextField("10", value: .init(
+                                            get: { tempExercise.sets[index].reps },
+                                            set: { tempExercise.sets[index].reps = max(1, min(100, $0)) }
+                                        ), format: .number)
+                                        .font(.system(size: 16))
+                                        .multilineTextAlignment(.center)
+                                        .frame(width: 50)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                        .keyboardType(.numberPad)
+                                        
+                                        Text("reps")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.secondary)
+                                        
+                                        Spacer()
+                                        
+                                        Text("Weight:")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.secondary)
+                                        
+                                        TextField("0", value: .init(
+                                            get: { tempExercise.sets[index].weight },
+                                            set: { tempExercise.sets[index].weight = max(0, $0) }
+                                        ), format: .number)
+                                        .font(.system(size: 16))
+                                        .multilineTextAlignment(.center)
+                                        .frame(width: 65)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                        .keyboardType(.decimalPad)
+                                        
+                                        Text("lbs")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                     }
                     .onDelete(perform: deleteExercise)
                     .onMove(perform: moveExercise)
                     
                     Button(action: { showingExercisePicker = true }) {
-                        Label("Add Exercise", systemImage: "plus.circle.fill")
-                            .foregroundColor(.purple)
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                            Text("Add Exercise")
+                                .font(.system(size: 17))
+                        }
+                        .foregroundColor(.purple)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.vertical, 4)
                 }
             }
             .navigationTitle("New Template")
@@ -89,12 +155,18 @@ struct CreateTemplateView: View {
         let template = WorkoutTemplate(name: templateName)
         
         for (index, tempExercise) in exercises.enumerated() {
+            // Use the first set's values as defaults, or average them
+            let avgReps = tempExercise.sets.isEmpty ? 10 : 
+                Int(tempExercise.sets.map { $0.reps }.reduce(0, +) / tempExercise.sets.count)
+            let avgWeight = tempExercise.sets.isEmpty ? 0 : 
+                tempExercise.sets.map { $0.weight }.reduce(0, +) / Double(tempExercise.sets.count)
+            
             let workoutExercise = WorkoutExercise(
                 exercise: tempExercise.exercise,
                 orderIndex: index,
-                targetSets: tempExercise.sets,
-                targetReps: tempExercise.reps,
-                targetWeight: tempExercise.weight
+                targetSets: tempExercise.sets.count,
+                targetReps: avgReps,
+                targetWeight: avgWeight
             )
             template.exercises.append(workoutExercise)
         }

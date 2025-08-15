@@ -36,6 +36,7 @@ final class SessionExercise {
     var exerciseName: String
     var orderIndex: Int
     @Relationship(deleteRule: .cascade) var sets: [WorkoutSet]
+    var exercise: Exercise
     
     init(exercise: Exercise, orderIndex: Int) {
         self.id = UUID()
@@ -43,6 +44,7 @@ final class SessionExercise {
         self.exerciseName = exercise.name
         self.orderIndex = orderIndex
         self.sets = []
+        self.exercise = exercise
     }
 }
 
