@@ -17,6 +17,18 @@ struct ExercisePickerView: View {
         }
     }
     
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins)m"
+        } else {
+            return "\(secs)s"
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             List {
@@ -29,8 +41,13 @@ struct ExercisePickerView: View {
                         }
                     }) {
                         HStack {
-                            Text(exercise.name)
-                                .foregroundColor(.primary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(exercise.name)
+                                    .foregroundColor(.primary)
+                                Text("Rest: \(formatRestTime(exercise.defaultRestSeconds))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                             Spacer()
                             Image(systemName: selectedExercises.contains(exercise) ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(selectedExercises.contains(exercise) ? .purple : .secondary)
@@ -79,12 +96,44 @@ struct CreateExerciseView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var exerciseName = ""
+    @State private var restMinutes = 1
+    @State private var restSeconds = 30
     let onCreate: (Exercise) -> Void
+    
+    private let minuteRange = 0...10
+    private let secondRange = 0...59
     
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Exercise Name", text: $exerciseName)
+                Section {
+                    TextField("Exercise Name", text: $exerciseName)
+                }
+                
+                Section("Default Rest Time") {
+                    HStack {
+                        Picker("Minutes", selection: $restMinutes) {
+                            ForEach(minuteRange, id: \.self) { minute in
+                                Text("\(minute) min").tag(minute)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(width: 100)
+                        
+                        Picker("Seconds", selection: $restSeconds) {
+                            ForEach(secondRange, id: \.self) { second in
+                                Text("\(second) sec").tag(second)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(width: 100)
+                    }
+                    .frame(height: 100)
+                    
+                    Text("This rest time will be used after each set of this exercise")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .navigationTitle("New Exercise")
             .navigationBarTitleDisplayMode(.inline)
@@ -97,6 +146,7 @@ struct CreateExerciseView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Create") {
                         let exercise = Exercise(name: exerciseName)
+                        exercise.defaultRestSeconds = (restMinutes * 60) + restSeconds
                         modelContext.insert(exercise)
                         try? modelContext.save()
                         onCreate(exercise)

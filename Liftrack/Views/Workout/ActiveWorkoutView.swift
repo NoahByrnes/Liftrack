@@ -239,11 +239,32 @@ struct ExerciseCard: View {
     let onSetComplete: () -> Void
     @State private var expandedSets = true
     
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins)m"
+        } else {
+            return "\(secs)s"
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(exercise.exerciseName)
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.exerciseName)
+                        .font(.headline)
+                    HStack(spacing: 4) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 11))
+                        Text("Rest: \(formatRestTime(exercise.exercise.defaultRestSeconds))")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(.secondary)
+                }
                 Spacer()
                 Button(action: { expandedSets.toggle() }) {
                     Image(systemName: expandedSets ? "chevron.up" : "chevron.down")

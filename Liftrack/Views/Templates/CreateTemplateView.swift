@@ -12,6 +12,11 @@ struct CreateTemplateView: View {
         let id = UUID()
         let exercise: Exercise
         var sets: [TempSet] = [TempSet(), TempSet(), TempSet()]
+        var customRestSeconds: Int? = nil
+        
+        var restSeconds: Int {
+            customRestSeconds ?? exercise.defaultRestSeconds
+        }
     }
     
     struct TempSet: Identifiable {
@@ -35,8 +40,17 @@ struct CreateTemplateView: View {
                                     .foregroundColor(.secondary)
                                     .font(.system(size: 18))
                                 
-                                Text(tempExercise.exercise.name)
-                                    .font(.system(size: 17, weight: .semibold))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(tempExercise.exercise.name)
+                                        .font(.system(size: 17, weight: .semibold))
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "timer")
+                                            .font(.system(size: 11))
+                                        Text("Rest: \(formatRestTime(tempExercise.restSeconds))")
+                                            .font(.system(size: 12))
+                                    }
+                                    .foregroundColor(.secondary)
+                                }
                                 
                                 Spacer()
                                 
@@ -47,6 +61,40 @@ struct CreateTemplateView: View {
                                     if tempExercise.sets.count > 1 {
                                         Button("Remove Last Set", role: .destructive) {
                                             tempExercise.sets.removeLast()
+                                        }
+                                    }
+                                    Divider()
+                                    Menu("Rest Time: \(formatRestTime(tempExercise.restSeconds))") {
+                                        Button("30 seconds") {
+                                            tempExercise.customRestSeconds = 30
+                                        }
+                                        Button("45 seconds") {
+                                            tempExercise.customRestSeconds = 45
+                                        }
+                                        Button("1 minute") {
+                                            tempExercise.customRestSeconds = 60
+                                        }
+                                        Button("1m 30s") {
+                                            tempExercise.customRestSeconds = 90
+                                        }
+                                        Button("2 minutes") {
+                                            tempExercise.customRestSeconds = 120
+                                        }
+                                        Button("2m 30s") {
+                                            tempExercise.customRestSeconds = 150
+                                        }
+                                        Button("3 minutes") {
+                                            tempExercise.customRestSeconds = 180
+                                        }
+                                        Button("4 minutes") {
+                                            tempExercise.customRestSeconds = 240
+                                        }
+                                        Button("5 minutes") {
+                                            tempExercise.customRestSeconds = 300
+                                        }
+                                        Divider()
+                                        Button("Use Default (\(formatRestTime(tempExercise.exercise.defaultRestSeconds)))") {
+                                            tempExercise.customRestSeconds = nil
                                         }
                                     }
                                 } label: {
@@ -143,6 +191,18 @@ struct CreateTemplateView: View {
         }
     }
     
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins)m"
+        } else {
+            return "\(secs)s"
+        }
+    }
+    
     private func deleteExercise(at offsets: IndexSet) {
         exercises.remove(atOffsets: offsets)
     }
@@ -166,7 +226,8 @@ struct CreateTemplateView: View {
                 orderIndex: index,
                 targetSets: tempExercise.sets.count,
                 targetReps: avgReps,
-                targetWeight: avgWeight
+                targetWeight: avgWeight,
+                customRestSeconds: tempExercise.customRestSeconds
             )
             template.exercises.append(workoutExercise)
         }

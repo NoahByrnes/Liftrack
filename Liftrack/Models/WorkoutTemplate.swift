@@ -25,13 +25,19 @@ final class WorkoutExercise {
     var targetSets: Int
     var targetReps: Int
     var targetWeight: Double?
+    var customRestSeconds: Int?
     
-    init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: Int = 10, targetWeight: Double? = nil) {
+    init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: Int = 10, targetWeight: Double? = nil, customRestSeconds: Int? = nil) {
         self.id = UUID()
         self.exercise = exercise
         self.orderIndex = orderIndex
         self.targetSets = targetSets
         self.targetReps = targetReps
         self.targetWeight = targetWeight
+        self.customRestSeconds = customRestSeconds
+    }
+    
+    var restSeconds: Int {
+        customRestSeconds ?? exercise.defaultRestSeconds
     }
 }

@@ -6,6 +6,18 @@ struct TemplateDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showingEditView = false
     
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins)m"
+        } else {
+            return "\(secs)s"
+        }
+    }
+    
     var body: some View {
         List {
             Section("Exercises") {
@@ -25,6 +37,14 @@ struct TemplateDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "timer")
+                                .font(.system(size: 11))
+                            Text("Rest: \(formatRestTime(exercise.restSeconds))")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 4)
                 }
