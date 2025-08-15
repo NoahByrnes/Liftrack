@@ -85,6 +85,21 @@ struct ActiveWorkoutView: View {
                         
                         Spacer()
                         
+                        // Quick time adjustment buttons
+                        Button(action: { 
+                            restTimeRemaining = max(0, restTimeRemaining - 15)
+                        }) {
+                            Image(systemName: "minus.circle")
+                                .foregroundColor(.purple)
+                        }
+                        
+                        Button(action: { 
+                            restTimeRemaining += 15
+                        }) {
+                            Image(systemName: "plus.circle")
+                                .foregroundColor(.purple)
+                        }
+                        
                         Button(action: { 
                             showingRestTimer = true 
                         }) {
@@ -125,7 +140,17 @@ struct ActiveWorkoutView: View {
             }
         }
         .sheet(isPresented: $showingRestTimer) {
-            RestTimerView(seconds: $restSeconds)
+            ExpandedRestTimerView(
+                remainingTime: $restTimeRemaining,
+                isRunning: showRestBar,
+                onDismiss: {
+                    showingRestTimer = false
+                },
+                onStop: {
+                    endRestTimer()
+                    showingRestTimer = false
+                }
+            )
         }
     }
     
