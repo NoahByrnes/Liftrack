@@ -38,7 +38,11 @@ struct ModernTabBar: View {
         .background(
             Capsule()
                 .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+                .shadow(color: Color(.systemGray).opacity(0.3), radius: 20, x: 0, y: 10)
+                .overlay(
+                    Capsule()
+                        .stroke(Color(.systemGray4).opacity(0.2), lineWidth: 0.5)
+                )
         )
         .padding(.horizontal)
         .padding(.bottom, 10)

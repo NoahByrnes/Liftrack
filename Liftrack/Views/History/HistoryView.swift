@@ -120,8 +120,8 @@ struct StatCard: View {
         .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: Color.primary.opacity(0.08), radius: 8, x: 0, y: 2)
         )
     }
 }
@@ -371,8 +371,8 @@ struct ExerciseDetailCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.02), radius: 4, x: 0, y: 2)
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .shadow(color: Color.primary.opacity(0.05), radius: 4, x: 0, y: 2)
         )
     }
 }

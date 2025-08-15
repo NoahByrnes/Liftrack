@@ -120,8 +120,8 @@ struct TemplateCard: View {
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: Color.primary.opacity(0.1), radius: 10, x: 0, y: 5)
             )
             .scaleEffect(isPressed ? 0.98 : 1.0)
         }

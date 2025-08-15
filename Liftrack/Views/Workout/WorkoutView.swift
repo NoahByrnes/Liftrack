@@ -197,8 +197,8 @@ struct QuickTemplateCard: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: Color.primary.opacity(0.08), radius: 8, x: 0, y: 2)
             )
             .padding(.horizontal)
             .scaleEffect(isPressed ? 0.98 : 1.0)
