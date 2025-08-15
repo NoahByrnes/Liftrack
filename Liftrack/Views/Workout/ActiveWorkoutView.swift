@@ -4,7 +4,7 @@ import SwiftData
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    let session: WorkoutSession
+    @Bindable var session: WorkoutSession
     @State private var elapsedTime = 0
     @State private var timer: Timer?
     @State private var showingAddExercise = false
@@ -204,19 +204,37 @@ struct ActiveWorkoutView: View {
     }
     
     private func finishWorkout() {
-        session.completedAt = Date()
         timer?.invalidate()
         restTimer?.invalidate()
-        try? modelContext.save()
+        
+        session.completedAt = Date()
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error finishing workout: \(error)")
+        }
+        
         dismiss()
     }
     
     private func cancelWorkout() {
         timer?.invalidate()
         restTimer?.invalidate()
-        // Delete the session without saving completion
+        
+        // Clear all relationships first to avoid SwiftData crash
+        session.exercises.removeAll()
+        
+        // Delete the session
         modelContext.delete(session)
-        try? modelContext.save()
+        
+        // Save changes
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error canceling workout: \(error)")
+        }
+        
         dismiss()
     }
     
@@ -380,6 +398,10 @@ struct SetRow: View {
 }
 
 #Preview {
-    ActiveWorkoutView(session: WorkoutSession())
-        .modelContainer(for: WorkoutSession.self, inMemory: true)
+    let container = try! ModelContainer(for: WorkoutSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let session = WorkoutSession()
+    container.mainContext.insert(session)
+    
+    return ActiveWorkoutView(session: session)
+        .modelContainer(container)
 }
