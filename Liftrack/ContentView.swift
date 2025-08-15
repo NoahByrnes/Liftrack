@@ -6,19 +6,50 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var selectedTab = 0
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView(selection: $selectedTab) {
+            TemplatesView()
+                .tabItem {
+                    Label("Templates", systemImage: "list.bullet")
+                }
+                .tag(0)
+            
+            WorkoutView()
+                .tabItem {
+                    Label("Workout", systemImage: "figure.strengthtraining.traditional")
+                }
+                .tag(1)
+            
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+                .tag(2)
+            
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.circle")
+                }
+                .tag(3)
         }
-        .padding()
+        .tint(.purple)
+        .onAppear {
+            DataSeeder.seedExercisesIfNeeded(context: modelContext)
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(for: [
+            Exercise.self,
+            WorkoutTemplate.self,
+            WorkoutSession.self
+        ], inMemory: true)
 }
