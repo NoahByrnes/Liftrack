@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct WorkoutSettingsView: View {
     @StateObject private var settings = SettingsManager.shared
@@ -66,7 +67,7 @@ struct WorkoutSettingsView: View {
                         }
                         .padding()
                     }
-                    .background(Color(.secondarySystemGroupedBackground))
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
                     .cornerRadius(16)
                 }
                 
@@ -88,7 +89,7 @@ struct WorkoutSettingsView: View {
                         .padding()
                         .tint(settings.accentColor.color)
                     }
-                    .background(Color(.secondarySystemGroupedBackground))
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
                     .cornerRadius(16)
                 }
                 
@@ -97,7 +98,7 @@ struct WorkoutSettingsView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Workout Settings")
         .navigationBarTitleDisplayMode(.inline)
     }

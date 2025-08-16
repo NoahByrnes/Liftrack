@@ -12,6 +12,9 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var selectedTab = 0
     @StateObject private var settings = SettingsManager.shared
+    @Query(filter: #Predicate<WorkoutSession> { $0.completedAt == nil })
+    private var activeSessions: [WorkoutSession]
+    @StateObject private var timerManager = WorkoutTimerManager.shared
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -32,8 +35,17 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Custom tab bar
-            ModernTabBar(selectedTab: $selectedTab)
+            VStack(spacing: 0) {
+                // Minimized workout bar (if active and minimized)
+                if let activeSession = activeSessions.first,
+                   timerManager.isMinimized {
+                    MinimizedWorkoutBar(session: activeSession)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                
+                // Custom tab bar
+                ModernTabBar(selectedTab: $selectedTab)
+            }
         }
         .ignoresSafeArea(edges: .bottom)
         .preferredColorScheme(settings.appearanceMode.colorScheme)

@@ -8,6 +8,7 @@ class WorkoutTimerManager: ObservableObject {
     @Published var isRunning: Bool = false
     @Published var restTimeRemaining: Int = 0
     @Published var showRestBar: Bool = false
+    @Published var isMinimized: Bool = false
     
     private var workoutTimer: Timer?
     private var restTimer: Timer?
@@ -70,5 +71,6 @@ class WorkoutTimerManager: ObservableObject {
         restTimeRemaining = 0
         isRunning = false
         showRestBar = false
+        isMinimized = false
     }
 }

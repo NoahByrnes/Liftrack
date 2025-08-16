@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ExpandedRestTimerView: View {
     @Binding var remainingTime: Int
@@ -82,7 +85,11 @@ struct ExpandedRestTimerView: View {
                                     .font(.largeTitle)
                                     .foregroundColor(.red)
                                     .frame(width: 80, height: 80)
-                                    .background(Color(.systemGray6))
+                                    #if os(iOS)
+                                    .background(Color(UIColor.systemGray6))
+                                    #else
+                                    .background(Color.gray.opacity(0.1))
+                                    #endif
                                     .clipShape(Circle())
                                 Text("End Rest")
                                     .font(.caption)
@@ -96,9 +103,11 @@ struct ExpandedRestTimerView: View {
             }
             .padding()
             .navigationTitle("Rest Timer")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button("Done") {
                         onDismiss()
                     }

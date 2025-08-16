@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct AboutView: View {
     @StateObject private var settings = SettingsManager.shared
@@ -63,9 +66,15 @@ struct AboutView: View {
             }
             .padding(.vertical)
         }
+        #if os(iOS)
         .background(Color(UIColor.systemGroupedBackground))
+        #else
+        .background(Color.gray.opacity(0.1))
+        #endif
         .navigationTitle("About")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
 
@@ -97,7 +106,11 @@ struct InfoCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
+                #if os(iOS)
                 .fill(Color(UIColor.secondarySystemGroupedBackground))
+                #else
+                .fill(Color.gray.opacity(0.2))
+                #endif
                 .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }

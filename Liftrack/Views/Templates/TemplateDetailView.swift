@@ -69,9 +69,11 @@ struct TemplateDetailView: View {
             }
         }
         .navigationTitle(template.name)
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
+        #endif
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .automatic) {
                 Button("Edit") {
                     showingEditView = true
                 }
@@ -109,9 +111,11 @@ struct TemplatePickerView: View {
                 }
             }
             .navigationTitle("Select Template")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }

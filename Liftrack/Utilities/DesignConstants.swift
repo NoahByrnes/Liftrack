@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Centralized design constants for consistent UI across the app
 enum DesignConstants {
@@ -48,11 +51,19 @@ enum DesignConstants {
         }
         
         static func cardBackground() -> Color {
-            Color(.systemGray6).opacity(0.5)
+            #if os(iOS)
+            Color(UIColor.systemGray6).opacity(0.5)
+            #else
+            Color.gray.opacity(0.1)
+            #endif
         }
         
         static func separatorColor() -> Color {
-            Color(.systemGray4).opacity(0.2)
+            #if os(iOS)
+            Color(UIColor.systemGray4).opacity(0.2)
+            #else
+            Color.gray.opacity(0.2)
+            #endif
         }
     }
     
@@ -64,6 +75,7 @@ enum DesignConstants {
     }
     
     // MARK: - Haptic Styles
+    #if canImport(UIKit)
     enum Haptic {
         static let lightImpact = UIImpactFeedbackGenerator.FeedbackStyle.light
         static let mediumImpact = UIImpactFeedbackGenerator.FeedbackStyle.medium
@@ -73,6 +85,7 @@ enum DesignConstants {
         static let warning = UINotificationFeedbackGenerator.FeedbackType.warning
         static let error = UINotificationFeedbackGenerator.FeedbackType.error
     }
+    #endif
     
     // MARK: - Font Sizes
     enum FontSize {

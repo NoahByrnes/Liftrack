@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ModernTabBar: View {
     @Binding var selectedTab: Int
@@ -96,5 +99,9 @@ struct TabButton: View {
         Spacer()
         ModernTabBar(selectedTab: .constant(1))
     }
+    #if os(iOS)
     .background(Color(UIColor.systemBackground))
+    #else
+    .background(Color.white)
+    #endif
 }

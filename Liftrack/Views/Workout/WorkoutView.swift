@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct WorkoutView: View {
     @Environment(\.modelContext) private var modelContext
@@ -9,10 +12,12 @@ struct WorkoutView: View {
     private var templates: [WorkoutTemplate]
     @State private var showingTemplatePicker = false
     
+    @StateObject private var timerManager = WorkoutTimerManager.shared
+    
     var body: some View {
         NavigationStack {
             Group {
-                if let activeSession = activeSessions.first {
+                if let activeSession = activeSessions.first, !timerManager.isMinimized {
                     ActiveWorkoutView(session: activeSession)
                 } else {
                     QuickStartView(templates: templates) { template in
@@ -98,7 +103,11 @@ struct QuickStartView: View {
                 // Start Empty Workout Button
                 Button(action: { 
                     onTemplateSelect(nil)
+                    #if os(iOS)
                     SettingsManager.shared.impactFeedback(style: .medium)
+                    #else
+                    SettingsManager.shared.impactFeedback()
+                    #endif
                 }) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -159,7 +168,11 @@ struct QuickStartView: View {
                 Spacer(minLength: DesignConstants.Spacing.tabBarClearance)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        #if os(iOS)
+        .background(Color(UIColor.systemGroupedBackground))
+        #else
+        .background(Color.gray.opacity(0.1))
+        #endif
     }
 }
 
@@ -172,7 +185,11 @@ struct QuickTemplateCard: View {
     var body: some View {
         Button(action: {
             action()
+            #if os(iOS)
             SettingsManager.shared.impactFeedback(style: .light)
+            #else
+            SettingsManager.shared.impactFeedback()
+            #endif
         }) {
             HStack(spacing: 16) {
                 // Icon
@@ -214,7 +231,11 @@ struct QuickTemplateCard: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.secondarySystemGroupedBackground))
+                    #if os(iOS)
+                    .fill(Color(UIColor.secondarySystemGroupedBackground))
+                    #else
+                    .fill(Color.gray.opacity(0.2))
+                    #endif
                     .shadow(color: Color.primary.opacity(0.08), radius: 8, x: 0, y: 2)
             )
             .padding(.horizontal)

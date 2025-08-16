@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ProfileView: View {
     @Query private var allSessions: [WorkoutSession]
@@ -105,8 +108,14 @@ struct ProfileView: View {
                     Spacer(minLength: DesignConstants.Spacing.tabBarClearance)
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            #if os(iOS)
+            .background(Color(UIColor.systemGroupedBackground))
+            #else
+            .background(Color.gray.opacity(0.1))
+            #endif
+            #if os(iOS)
             .navigationBarHidden(true)
+            #endif
         }
     }
     
@@ -143,7 +152,11 @@ struct StatsCard: View {
         .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemGroupedBackground))
+                #if os(iOS)
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+                #else
+                .fill(Color.gray.opacity(0.2))
+                #endif
                 .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }
@@ -181,7 +194,11 @@ struct SettingsRow: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemGroupedBackground))
+                #if os(iOS)
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
+                #else
+                .fill(Color.gray.opacity(0.2))
+                #endif
                 .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }

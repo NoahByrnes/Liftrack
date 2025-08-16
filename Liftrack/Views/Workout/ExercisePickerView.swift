@@ -74,14 +74,16 @@ struct ExercisePickerView: View {
             }
             .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Exercises")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     if selectedExercises.isEmpty {
                         Button("Create New") {
                             showingCreateExercise = true
@@ -135,7 +137,11 @@ struct CreateExerciseView: View {
                                 Text("\(minute) min").tag(minute)
                             }
                         }
+                        #if os(iOS)
                         .pickerStyle(.wheel)
+                        #else
+                        .pickerStyle(.menu)
+                        #endif
                         .frame(width: 100)
                         
                         Picker("Seconds", selection: $restSeconds) {
@@ -143,7 +149,11 @@ struct CreateExerciseView: View {
                                 Text("\(second) sec").tag(second)
                             }
                         }
+                        #if os(iOS)
                         .pickerStyle(.wheel)
+                        #else
+                        .pickerStyle(.menu)
+                        #endif
                         .frame(width: 100)
                     }
                     .frame(height: 100)
@@ -154,14 +164,16 @@ struct CreateExerciseView: View {
                 }
             }
             .navigationTitle("New Exercise")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button("Create") {
                         let exercise = Exercise(name: exerciseName)
                         exercise.defaultRestSeconds = (restMinutes * 60) + restSeconds

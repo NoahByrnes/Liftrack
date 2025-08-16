@@ -30,81 +30,124 @@ struct CreateTemplateView: View {
     
     var body: some View {
         NavigationStack {
-            formContent
-                .navigationTitle("New Template")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") { dismiss() }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        saveButton
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Invisible background for keyboard dismissal
+                        Color.clear
+                            .frame(height: 0)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        
+                        VStack(spacing: 24) {
+                            templateInfoSection
+                            exercisesSection
+                        }
+                        .padding()
+                        .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
                     }
                 }
-                .sheet(isPresented: $showingExercisePicker, content: exercisePickerSheet)
-        }
-    }
-    
-    private var formContent: some View {
-        Form {
-            templateInfoSection
-            exercisesSection
+            }
+            .navigationTitle("New Template")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    saveButton
+                }
+            }
+            .sheet(isPresented: $showingExercisePicker, content: exercisePickerSheet)
         }
     }
     
     private var templateInfoSection: some View {
-        Group {
-            Section("Template Name") {
+        VStack(alignment: .leading, spacing: 20) {
+            // Template Name
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TEMPLATE NAME")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                
                 TextField("Enter template name", text: $templateName)
+                    .font(.system(size: 17))
+                    .padding()
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(10)
             }
             
-            Section("Description") {
+            // Description
+            VStack(alignment: .leading, spacing: 8) {
+                Text("DESCRIPTION")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                
                 TextField("Add a description (optional)", text: $templateDescription, axis: .vertical)
+                    .font(.system(size: 17))
+                    .padding()
                     .lineLimit(2...4)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .cornerRadius(10)
             }
         }
     }
     
     private var exercisesSection: some View {
-        Section("Exercises") {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("EXERCISES")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+            
             exercisesList
             addExerciseButton
         }
     }
     
     private var exercisesList: some View {
-        ForEach(exercises, id: \.id) { exercise in
-            if let exerciseIndex = exercises.firstIndex(where: { $0.id == exercise.id }) {
-                ExerciseRow(
-                    exercise: exercise,
-                    exerciseIndex: exerciseIndex,
-                    onDelete: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
-                                exercises.remove(at: index)
+        VStack(spacing: 20) {
+            ForEach(exercises, id: \.id) { exercise in
+                if let exerciseIndex = exercises.firstIndex(where: { $0.id == exercise.id }) {
+                    ExerciseRow(
+                        exercise: exercise,
+                        exerciseIndex: exerciseIndex,
+                        onDelete: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
+                                    exercises.remove(at: index)
+                                }
                             }
-                        }
-                    },
-                    onRestChange: { seconds in
-                        if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
-                            exercises[index].customRestSeconds = seconds
-                        }
-                    },
-                    exercises: $exercises
-                )
-                .padding(.vertical, 8)
+                        },
+                        onRestChange: { seconds in
+                            if let index = exercises.firstIndex(where: { $0.id == exercise.id }) {
+                                exercises[index].customRestSeconds = seconds
+                            }
+                        },
+                        exercises: $exercises
+                    )
+                }
             }
         }
     }
     
     private var addExerciseButton: some View {
         Button(action: { showingExercisePicker = true }) {
-            Label("Add Exercise", systemImage: "plus.circle.fill")
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(settings.accentColor.color.opacity(0.1))
-                .foregroundColor(settings.accentColor.color)
-                .cornerRadius(12)
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 20))
+                Text("Add Exercise")
+                    .font(.system(size: 17, weight: .medium))
+            }
+            .foregroundColor(settings.accentColor.color)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(settings.accentColor.color.opacity(0.1))
+            .cornerRadius(12)
         }
     }
     
@@ -165,15 +208,14 @@ struct ExerciseRow: View {
     let onRestChange: (Int?) -> Void
     @Binding var exercises: [CreateTemplateView.TempExercise]
     @StateObject private var settings = SettingsManager.shared
+    @State private var showingCustomPicker = false
+    @State private var customMinutes = 0
+    @State private var customSeconds = 0
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Exercise Header
+            // Exercise Header - Match ActiveWorkoutView style
             HStack {
-                Image(systemName: "line.3.horizontal")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 18))
-                
                 Text(exercise.exercise.name)
                     .font(.system(size: 17, weight: .semibold))
                 
@@ -189,12 +231,18 @@ struct ExerciseRow: View {
                     }
             }
             
-            // Rest Timer
-            RestTimerRow(
-                restSeconds: exercise.restSeconds,
-                defaultSeconds: exercise.exercise.defaultRestSeconds,
-                onSelect: onRestChange
-            )
+            // Rest Timer - Match ActiveWorkoutView style
+            HStack {
+                Image(systemName: "timer")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                Text("Rest: \(formatRestTime(exercise.restSeconds))")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
             
             // Sets
             SetsEditor(
@@ -202,17 +250,10 @@ struct ExerciseRow: View {
                 exercises: $exercises
             )
         }
+        .padding(20)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(12)
     }
-}
-
-struct RestTimerRow: View {
-    let restSeconds: Int
-    let defaultSeconds: Int
-    let onSelect: (Int?) -> Void
-    @StateObject private var settings = SettingsManager.shared
-    @State private var showingCustomPicker = false
-    @State private var customMinutes = 0
-    @State private var customSeconds = 0
     
     private func formatRestTime(_ seconds: Int) -> String {
         let mins = seconds / 60
@@ -225,54 +266,8 @@ struct RestTimerRow: View {
             return "\(secs)s"
         }
     }
-    
-    var body: some View {
-        HStack {
-            Image(systemName: "timer")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-            
-            Text("Rest:")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 4) {
-                Text(formatRestTime(restSeconds))
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(settings.accentColor.color)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 10))
-                    .foregroundColor(settings.accentColor.color)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(settings.accentColor.color.opacity(0.1))
-            .cornerRadius(6)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                customMinutes = restSeconds / 60
-                customSeconds = restSeconds % 60
-                showingCustomPicker = true
-            }
-            .sheet(isPresented: $showingCustomPicker) {
-                RestTimerPicker(
-                    minutes: $customMinutes,
-                    seconds: $customSeconds,
-                    onDismiss: {
-                        showingCustomPicker = false
-                    },
-                    onSave: {
-                        let totalSeconds = customMinutes * 60 + customSeconds
-                        onSelect(totalSeconds > 0 ? totalSeconds : nil)
-                        showingCustomPicker = false
-                    }
-                )
-            }
-            
-            Spacer()
-        }
-    }
 }
+
 
 struct RestTimerPicker: View {
     @Binding var minutes: Int

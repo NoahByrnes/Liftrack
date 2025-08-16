@@ -62,17 +62,23 @@ final class WorkoutSet {
     var reps: Int
     var isCompleted: Bool
     var completedAt: Date?
+    var isWarmup: Bool = false
     
-    init(setNumber: Int, weight: Double = 0, reps: Int = 0) {
+    init(setNumber: Int, weight: Double = 0, reps: Int = 0, isWarmup: Bool = false) {
         self.id = UUID()
         self.setNumber = setNumber
         self.weight = weight
         self.reps = reps
         self.isCompleted = false
+        self.isWarmup = isWarmup
     }
     
     func toggleCompleted() {
         isCompleted.toggle()
         completedAt = isCompleted ? Date() : nil
+    }
+    
+    func toggleWarmup() {
+        isWarmup.toggle()
     }
 }

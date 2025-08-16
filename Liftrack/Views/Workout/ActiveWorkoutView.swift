@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,12 +19,15 @@ struct ActiveWorkoutView: View {
             VStack(spacing: 0) {
                 // Timer Header
                 HStack {
-                    Image(systemName: "xmark")
-                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.down.circle.fill")
+                        .foregroundColor(settings.accentColor.color)
                         .font(.system(size: 20))
                         .contentShape(Circle())
                         .onTapGesture {
-                            showingCancelAlert = true
+                            withAnimation {
+                                timerManager.isMinimized = true
+                                dismiss()
+                            }
                         }
                     
                     Spacer()
@@ -42,10 +48,16 @@ struct ActiveWorkoutView: View {
                         }
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                #if os(iOS)
+                .background(Color(UIColor.systemGray6))
+                #else
+                .background(Color.gray.opacity(0.1))
+                #endif
                 .onTapGesture {
                     // Dismiss keyboard when tapping header
+                    #if os(iOS)
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    #endif
                 }
                 
                 ScrollView {
@@ -55,7 +67,9 @@ struct ActiveWorkoutView: View {
                             .frame(height: 0)
                             .contentShape(Rectangle())
                             .onTapGesture {
+                                #if os(iOS)
                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                #endif
                             }
                         
                         ForEach(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
@@ -63,7 +77,9 @@ struct ActiveWorkoutView: View {
                                 exercise: exercise,
                                 onSetComplete: {
                                     // Dismiss keyboard when completing a set
+                                    #if os(iOS)
                                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    #endif
                                     if !timerManager.isRunning {
                                         timerManager.startWorkoutTimer()
                                     }
@@ -280,6 +296,21 @@ struct ExerciseCard: View {
         }
     }
     
+    private func reorderSets(for exercise: SessionExercise) {
+        let warmupSets = exercise.sets.filter { $0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+        let regularSets = exercise.sets.filter { !$0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+        
+        // Renumber warmup sets
+        for (index, set) in warmupSets.enumerated() {
+            set.setNumber = index + 1
+        }
+        
+        // Renumber regular sets
+        for (index, set) in regularSets.enumerated() {
+            set.setNumber = index + 1
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Exercise Header - Match CreateTemplateView style
@@ -294,7 +325,11 @@ struct ExerciseCard: View {
                     .foregroundColor(DesignConstants.Colors.deleteRed())
                     .contentShape(Circle())
                     .onTapGesture {
+                        #if os(iOS)
                         SettingsManager.shared.impactFeedback(style: .medium)
+                        #else
+                        SettingsManager.shared.impactFeedback()
+                        #endif
                         onDelete()
                     }
             }
@@ -341,20 +376,23 @@ struct ExerciseCard: View {
                 }
                 .padding(.horizontal, 8)
                 
-                // Set Rows
-                ForEach(exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })) { set in
+                // Set Rows - Warmup sets first, then regular sets
+                ForEach(exercise.sets.sorted(by: { 
+                    if $0.isWarmup != $1.isWarmup {
+                        return $0.isWarmup
+                    }
+                    return $0.setNumber < $1.setNumber 
+                })) { set in
                     WorkoutSetRow(
                         set: set,
+                        exercise: exercise,
                         onComplete: onSetComplete,
                         canDelete: exercise.sets.count > 1,
                         onDelete: {
                             withAnimation {
                                 exercise.sets.removeAll { $0.id == set.id }
                                 // Renumber remaining sets
-                                let sortedSets = exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })
-                                for (index, remainingSet) in sortedSets.enumerated() {
-                                    remainingSet.setNumber = index + 1
-                                }
+                                reorderSets(for: exercise)
                                 try? modelContext.save()
                             }
                         }
@@ -395,20 +433,43 @@ struct ExerciseCard: View {
 
 struct WorkoutSetRow: View {
     let set: WorkoutSet
+    let exercise: SessionExercise
     let onComplete: () -> Void
     let canDelete: Bool
     let onDelete: () -> Void
+    @Environment(\.modelContext) private var modelContext
     
     @State private var weight = ""
     @State private var reps = ""
     
     var body: some View {
         HStack(spacing: 8) {
-            Text("\(set.setNumber)")
+            Text(set.isWarmup ? "W" : "\(set.setNumber)")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.secondary)
+                .foregroundColor(set.isWarmup ? .orange : .secondary)
                 .frame(width: 40, alignment: .leading)
                 .padding(.leading, 8)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation {
+                        set.toggleWarmup()
+                        // Reorder all sets in the exercise
+                        let warmupSets = exercise.sets.filter { $0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+                        let regularSets = exercise.sets.filter { !$0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+                        
+                        // Renumber warmup sets
+                        for (index, warmupSet) in warmupSets.enumerated() {
+                            warmupSet.setNumber = index + 1
+                        }
+                        
+                        // Renumber regular sets
+                        for (index, regularSet) in regularSets.enumerated() {
+                            regularSet.setNumber = index + 1
+                        }
+                        
+                        try? modelContext.save()
+                    }
+                }
             
             Text("-")
                 .font(.system(size: 14))
@@ -422,7 +483,11 @@ struct WorkoutSetRow: View {
                 .frame(width: 50)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 4)
-                .background(Color(.systemGray6))
+                #if os(iOS)
+                .background(Color(UIColor.systemGray6))
+                #else
+                .background(Color.gray.opacity(0.1))
+                #endif
                 .cornerRadius(6)
                 .keyboardType(.decimalPad)
                 .onChange(of: weight) { _, newValue in
@@ -443,7 +508,11 @@ struct WorkoutSetRow: View {
                 .frame(width: 40)
                 .padding(.vertical, 6)
                 .padding(.horizontal, 4)
-                .background(Color(.systemGray6))
+                #if os(iOS)
+                .background(Color(UIColor.systemGray6))
+                #else
+                .background(Color.gray.opacity(0.1))
+                #endif
                 .cornerRadius(6)
                 .keyboardType(.numberPad)
                 .onChange(of: reps) { _, newValue in
@@ -452,45 +521,25 @@ struct WorkoutSetRow: View {
                     }
                 }
             
-            // Complete/Delete Button
-            if canDelete {
-                Menu {
-                    Button(action: {
-                        set.toggleCompleted()
-                        if set.isCompleted {
-                            onComplete()
-                        }
-                    }) {
-                        Label(set.isCompleted ? "Mark Incomplete" : "Mark Complete", 
-                              systemImage: set.isCompleted ? "circle" : "checkmark.circle")
+            // Complete Button - Single tap for all
+            Image(systemName: set.isCompleted ? DesignConstants.Icons.check : DesignConstants.Icons.uncheck)
+                .font(.system(size: 22))
+                .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
+                .frame(width: 44)
+                .contentShape(Circle())
+                .onTapGesture {
+                    set.toggleCompleted()
+                    if set.isCompleted {
+                        onComplete()
                     }
-                    
-                    Button(role: .destructive, action: {
+                    SettingsManager.shared.impactFeedback(style: .light)
+                }
+                .onLongPressGesture {
+                    if canDelete {
                         SettingsManager.shared.impactFeedback(style: .medium)
                         onDelete()
-                    }) {
-                        Label("Delete Set", systemImage: "trash")
                     }
-                } label: {
-                    Image(systemName: set.isCompleted ? DesignConstants.Icons.check : DesignConstants.Icons.uncheck)
-                        .font(.system(size: 22))
-                        .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
-                        .frame(width: 44)
-                        .contentShape(Circle())
                 }
-            } else {
-                Image(systemName: set.isCompleted ? DesignConstants.Icons.check : DesignConstants.Icons.uncheck)
-                    .font(.system(size: 22))
-                    .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
-                    .frame(width: 44)
-                    .contentShape(Circle())
-                    .onTapGesture {
-                        set.toggleCompleted()
-                        if set.isCompleted {
-                            onComplete()
-                        }
-                    }
-            }
         }
         .padding(.vertical, 2)
         .onAppear {

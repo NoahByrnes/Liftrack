@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct DataManagementView: View {
     @StateObject private var settings = SettingsManager.shared
@@ -13,9 +16,15 @@ struct DataManagementView: View {
             }
             .padding()
         }
+        #if os(iOS)
         .background(Color(UIColor.systemGroupedBackground))
+        #else
+        .background(Color.gray.opacity(0.1))
+        #endif
         .navigationTitle("Data & Backup")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .alert("Export Coming Soon", isPresented: $showExportAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -55,7 +64,11 @@ struct DataManagementView: View {
                     color: .green
                 )
             }
+            #if os(iOS)
             .background(Color(UIColor.secondarySystemGroupedBackground))
+            #else
+            .background(Color.gray.opacity(0.2))
+            #endif
             .cornerRadius(16)
         }
     }
@@ -74,7 +87,11 @@ struct DataManagementView: View {
                 
                 clearDataButton
             }
+            #if os(iOS)
             .background(Color(UIColor.secondarySystemGroupedBackground))
+            #else
+            .background(Color.gray.opacity(0.2))
+            #endif
             .cornerRadius(16)
         }
     }
