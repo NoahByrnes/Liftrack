@@ -6,6 +6,7 @@ struct ExpandedRestTimerView: View {
     let onDismiss: () -> Void
     let onStop: () -> Void
     @State private var totalTime: Int = 90
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationStack {
@@ -18,7 +19,7 @@ struct ExpandedRestTimerView: View {
                     
                     Circle()
                         .trim(from: 0, to: isRunning && totalTime > 0 ? CGFloat(remainingTime) / CGFloat(totalTime) : 1)
-                        .stroke(Color.purple, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                        .stroke(settings.accentColor.color, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                         .frame(width: 250, height: 250)
                         .rotationEffect(.degrees(-90))
                         .animation(.linear(duration: 0.5), value: remainingTime)
@@ -44,7 +45,7 @@ struct ExpandedRestTimerView: View {
                             VStack {
                                 Image(systemName: "minus.circle.fill")
                                     .font(.title)
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(settings.accentColor.color)
                                 Text("-15s")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -61,7 +62,7 @@ struct ExpandedRestTimerView: View {
                             VStack {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title)
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(settings.accentColor.color)
                                 Text("+15s")
                                     .font(.caption)
                                     .foregroundColor(.secondary)

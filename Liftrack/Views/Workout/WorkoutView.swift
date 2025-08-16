@@ -20,7 +20,6 @@ struct WorkoutView: View {
                     }
                 }
             }
-            .navigationTitle("Workout")
             .sheet(isPresented: $showingTemplatePicker) {
                 TemplatePickerView { template in
                     startWorkout(with: template)
@@ -41,13 +40,26 @@ struct WorkoutView: View {
                     customRestSeconds: workoutExercise.customRestSeconds
                 )
                 
-                for setNumber in 1...workoutExercise.targetSets {
-                    let set = WorkoutSet(
-                        setNumber: setNumber,
-                        weight: workoutExercise.targetWeight ?? 0,
-                        reps: workoutExercise.targetReps
-                    )
-                    sessionExercise.sets.append(set)
+                // Use individual set data if available, otherwise fall back to averages
+                if !workoutExercise.templateSets.isEmpty {
+                    for templateSet in workoutExercise.templateSets.sorted(by: { $0.setNumber < $1.setNumber }) {
+                        let set = WorkoutSet(
+                            setNumber: templateSet.setNumber,
+                            weight: templateSet.weight,
+                            reps: templateSet.reps
+                        )
+                        sessionExercise.sets.append(set)
+                    }
+                } else {
+                    // Fallback for old templates without individual set data
+                    for setNumber in 1...workoutExercise.targetSets {
+                        let set = WorkoutSet(
+                            setNumber: setNumber,
+                            weight: workoutExercise.targetWeight ?? 0,
+                            reps: workoutExercise.targetReps
+                        )
+                        sessionExercise.sets.append(set)
+                    }
                 }
                 
                 session.exercises.append(sessionExercise)
@@ -64,25 +76,29 @@ struct QuickStartView: View {
     let templates: [WorkoutTemplate]
     let onTemplateSelect: (WorkoutTemplate?) -> Void
     @State private var animateGradient = false
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Ready to Train?")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                    
-                    Text("Choose a template or start fresh")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                // Header - Match Templates/History style
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Workout")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                        Text("Ready to train?")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
                 }
-                .padding(.top, 20)
+                .padding(.horizontal)
+                .padding(.top, 10)
                 
                 // Start Empty Workout Button
                 Button(action: { 
                     onTemplateSelect(nil)
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    SettingsManager.shared.impactFeedback(style: .medium)
                 }) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -101,13 +117,13 @@ struct QuickStartView: View {
                     .padding(20)
                     .background(
                         LinearGradient(
-                            colors: [Color.purple, Color.purple.opacity(0.8)],
+                            colors: [settings.accentColor.color, settings.accentColor.color.opacity(0.8)],
                             startPoint: animateGradient ? .topLeading : .bottomLeading,
                             endPoint: animateGradient ? .bottomTrailing : .topTrailing
                         )
                     )
                     .cornerRadius(20)
-                    .shadow(color: .purple.opacity(0.3), radius: 10, x: 0, y: 5)
+                    .shadow(color: settings.accentColor.color.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
                 .padding(.horizontal)
                 .onAppear {
@@ -126,7 +142,7 @@ struct QuickStartView: View {
                             NavigationLink(destination: TemplatesView()) {
                                 Text("See All")
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(settings.accentColor.color)
                             }
                         }
                         .padding(.horizontal)
@@ -140,7 +156,7 @@ struct QuickStartView: View {
                     .padding(.top, 8)
                 }
                 
-                Spacer(minLength: 120)
+                Spacer(minLength: DesignConstants.Spacing.tabBarClearance)
             }
         }
         .background(Color(.systemGroupedBackground))
@@ -151,22 +167,23 @@ struct QuickTemplateCard: View {
     let template: WorkoutTemplate
     let action: () -> Void
     @State private var isPressed = false
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         Button(action: {
             action()
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            SettingsManager.shared.impactFeedback(style: .light)
         }) {
             HStack(spacing: 16) {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.1))
+                        .fill(settings.accentColor.color.opacity(0.1))
                         .frame(width: 50, height: 50)
                     
                     Image(systemName: "figure.strengthtraining.traditional")
                         .font(.system(size: 22))
-                        .foregroundColor(.purple)
+                        .foregroundColor(settings.accentColor.color)
                 }
                 
                 // Content
@@ -192,7 +209,7 @@ struct QuickTemplateCard: View {
                 
                 Image(systemName: "chevron.right.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(.purple.opacity(0.3))
+                    .foregroundColor(settings.accentColor.color.opacity(0.3))
             }
             .padding(16)
             .background(

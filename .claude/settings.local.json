@@ -9,7 +9,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(mkdir:*)",
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(find:*)",
+      "Bash(swift:*)"
     ],
     "defaultMode": "acceptEdits"
   }

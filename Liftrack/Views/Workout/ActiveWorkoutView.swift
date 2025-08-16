@@ -5,133 +5,159 @@ struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var session: WorkoutSession
-    @State private var elapsedTime = 0
-    @State private var timer: Timer?
+    @StateObject private var settings = SettingsManager.shared
+    @StateObject private var timerManager = WorkoutTimerManager.shared
     @State private var showingAddExercise = false
     @State private var showingRestTimer = false
-    @State private var restSeconds = 90
     @State private var showingCancelAlert = false
-    @State private var hasStartedWorkout = false
-    @State private var currentRestTime = 0
-    @State private var restTimer: Timer?
-    @State private var showRestBar = false
-    @State private var restTimeRemaining = 0
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Timer Header
-            HStack {
-                Button(action: { showingCancelAlert = true }) {
+        ZStack {
+            VStack(spacing: 0) {
+                // Timer Header
+                HStack {
                     Image(systemName: "xmark")
                         .foregroundColor(.secondary)
                         .font(.system(size: 20))
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 8) {
-                    Image(systemName: "timer")
-                    Text(formatTime(elapsedTime))
-                        .font(.system(.title3, design: .monospaced))
-                }
-                
-                Spacer()
-                
-                Button("Finish") {
-                    finishWorkout()
-                }
-                .foregroundColor(.purple)
-                .fontWeight(.semibold)
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            
-            ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
-                        ExerciseCard(
-                            exercise: exercise,
-                            onSetComplete: {
-                                if !hasStartedWorkout {
-                                    hasStartedWorkout = true
-                                    startWorkoutTimer()
-                                }
-                                startRestTimer(seconds: exercise.restSeconds)
-                            },
-                            onDelete: {
-                                withAnimation {
-                                    session.exercises.removeAll { $0.id == exercise.id }
-                                    // Renumber remaining exercises
-                                    let sortedExercises = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
-                                    for (index, remainingExercise) in sortedExercises.enumerated() {
-                                        remainingExercise.orderIndex = index
-                                    }
-                                    try? modelContext.save()
-                                }
-                            }
-                        )
+                        .contentShape(Circle())
+                        .onTapGesture {
+                            showingCancelAlert = true
+                        }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 8) {
+                        Image(systemName: "timer")
+                        Text(formatTime(timerManager.elapsedTime))
+                            .font(.system(.title3, design: .monospaced))
                     }
                     
-                    Button(action: { showingAddExercise = true }) {
-                        Label("Add Exercise", systemImage: "plus.circle.fill")
+                    Spacer()
+                    
+                    Text("Finish")
+                        .foregroundColor(settings.accentColor.color)
+                        .fontWeight(.semibold)
+                        .onTapGesture {
+                            finishWorkout()
+                        }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .onTapGesture {
+                    // Dismiss keyboard when tapping header
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Invisible background for keyboard dismissal
+                        Color.clear
+                            .frame(height: 0)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
+                        
+                        ForEach(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
+                            ExerciseCard(
+                                exercise: exercise,
+                                onSetComplete: {
+                                    // Dismiss keyboard when completing a set
+                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                    if !timerManager.isRunning {
+                                        timerManager.startWorkoutTimer()
+                                    }
+                                    timerManager.startRestTimer(seconds: exercise.restSeconds)
+                                },
+                                onDelete: {
+                                    withAnimation {
+                                        session.exercises.removeAll { $0.id == exercise.id }
+                                        // Renumber remaining exercises
+                                        let sortedExercises = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+                                        for (index, remainingExercise) in sortedExercises.enumerated() {
+                                            remainingExercise.orderIndex = index
+                                        }
+                                        try? modelContext.save()
+                                    }
+                                }
+                            )
+                            .padding(.vertical, 8)
+                        }
+                        
+                        // Add Exercise Button - Match CreateTemplateView style
+                        Button(action: {
+                            showingAddExercise = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                Text("Add Exercise")
+                                    .font(.system(size: 17, weight: .medium))
+                            }
+                            .foregroundColor(settings.accentColor.color)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.purple.opacity(0.1))
-                            .foregroundColor(.purple)
+                            .background(settings.accentColor.color.opacity(0.1))
                             .cornerRadius(12)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Add padding at bottom to account for tab bar and rest timer
+                        Color.clear.frame(height: timerManager.showRestBar ? 180 : DesignConstants.Spacing.tabBarClearance)
                     }
-                    .padding(.horizontal)
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
             
-            // Rest timer bar
-            if showRestBar {
-                VStack(spacing: 0) {
-                    Divider()
+            // Rest timer bar - positioned as floating element above tab bar
+            if timerManager.showRestBar {
+                VStack {
+                    Spacer()
                     
-                    HStack {
-                        Image(systemName: "timer")
-                            .foregroundColor(.purple)
-                        
-                        Text("Rest: \(formatRestTime(restTimeRemaining))")
-                            .font(.system(.body, design: .monospaced))
-                        
-                        Spacer()
-                        
-                        // Quick time adjustment buttons
-                        Button(action: { 
-                            restTimeRemaining = max(0, restTimeRemaining - 15)
-                        }) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Image(systemName: "timer")
+                                .foregroundColor(settings.accentColor.color)
+                            
+                            Text("Rest: \(formatRestTime(timerManager.restTimeRemaining))")
+                                .font(.system(.body, design: .monospaced))
+                            
+                            Spacer()
+                            
+                            // Quick time adjustment buttons
                             Image(systemName: "minus.circle")
-                                .foregroundColor(.purple)
-                        }
-                        
-                        Button(action: { 
-                            restTimeRemaining += 15
-                        }) {
+                                .foregroundColor(settings.accentColor.color)
+                                .onTapGesture {
+                                    timerManager.adjustRestTime(by: -15)
+                                }
+                            
                             Image(systemName: "plus.circle")
-                                .foregroundColor(.purple)
-                        }
-                        
-                        Button(action: { 
-                            showingRestTimer = true 
-                        }) {
+                                .foregroundColor(settings.accentColor.color)
+                                .onTapGesture {
+                                    timerManager.adjustRestTime(by: 15)
+                                }
+                            
                             Text("Expand")
                                 .font(.footnote)
-                                .foregroundColor(.purple)
-                        }
-                        
-                        Button(action: { 
-                            endRestTimer()
-                        }) {
+                                .foregroundColor(settings.accentColor.color)
+                                .onTapGesture {
+                                    showingRestTimer = true
+                                }
+                            
                             Text("Skip")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
+                                .onTapGesture {
+                                    timerManager.endRestTimer()
+                                }
                         }
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
                     }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
+                    .padding(.horizontal)
+                    .padding(.bottom, 100) // Position above tab bar
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -145,9 +171,6 @@ struct ActiveWorkoutView: View {
         } message: {
             Text("Are you sure you want to cancel this workout? Your progress will not be saved.")
         }
-        .onDisappear {
-            timer?.invalidate()
-        }
         .sheet(isPresented: $showingAddExercise) {
             ExercisePickerView { exercise in
                 addExercise(exercise)
@@ -155,47 +178,16 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $showingRestTimer) {
             ExpandedRestTimerView(
-                remainingTime: $restTimeRemaining,
-                isRunning: showRestBar,
+                remainingTime: $timerManager.restTimeRemaining,
+                isRunning: timerManager.showRestBar,
                 onDismiss: {
                     showingRestTimer = false
                 },
                 onStop: {
-                    endRestTimer()
+                    timerManager.endRestTimer()
                     showingRestTimer = false
                 }
             )
-        }
-    }
-    
-    private func startWorkoutTimer() {
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            elapsedTime += 1
-        }
-    }
-    
-    private func startRestTimer(seconds: Int? = nil) {
-        restTimeRemaining = seconds ?? restSeconds
-        withAnimation(.easeInOut(duration: 0.3)) {
-            showRestBar = true
-        }
-        
-        restTimer?.invalidate()
-        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if restTimeRemaining > 0 {
-                restTimeRemaining -= 1
-            } else {
-                endRestTimer()
-            }
-        }
-    }
-    
-    private func endRestTimer() {
-        restTimer?.invalidate()
-        restTimer = nil
-        withAnimation(.easeInOut(duration: 0.3)) {
-            showRestBar = false
         }
     }
     
@@ -218,8 +210,7 @@ struct ActiveWorkoutView: View {
     }
     
     private func finishWorkout() {
-        timer?.invalidate()
-        restTimer?.invalidate()
+        timerManager.cleanup()
         
         session.completedAt = Date()
         
@@ -233,8 +224,7 @@ struct ActiveWorkoutView: View {
     }
     
     private func cancelWorkout() {
-        timer?.invalidate()
-        restTimer?.invalidate()
+        timerManager.cleanup()
         
         // Clear all relationships first to avoid SwiftData crash
         session.exercises.removeAll()
@@ -274,10 +264,9 @@ struct ExerciseCard: View {
     let exercise: SessionExercise
     let onSetComplete: () -> Void
     let onDelete: () -> Void
-    @State private var expandedSets = true
-    @State private var offset: CGFloat = 0
-    @State private var showDeleteConfirm = false
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var settings = SettingsManager.shared
+    @State private var isProcessingAction = false
     
     private func formatRestTime(_ seconds: Int) -> String {
         let mins = seconds / 60
@@ -292,259 +281,218 @@ struct ExerciseCard: View {
     }
     
     var body: some View {
-        ZStack {
-            // Delete background
+        VStack(alignment: .leading, spacing: 16) {
+            // Exercise Header - Match CreateTemplateView style
             HStack {
+                Text(exercise.exerciseName)
+                    .font(.system(size: 17, weight: .semibold))
+                
                 Spacer()
                 
-                Button(action: {
-                    if showDeleteConfirm {
-                        withAnimation(.spring()) {
-                            onDelete()
-                        }
-                    } else {
-                        withAnimation(.spring()) {
-                            showDeleteConfirm = true
-                        }
-                        // Reset after 3 seconds if not confirmed
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                Image(systemName: DesignConstants.Icons.delete)
+                    .font(.system(size: 20))
+                    .foregroundColor(DesignConstants.Colors.deleteRed())
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        SettingsManager.shared.impactFeedback(style: .medium)
+                        onDelete()
+                    }
+            }
+            
+            // Rest Timer - Match CreateTemplateView style
+            HStack {
+                Image(systemName: "timer")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                Text("Rest: \(formatRestTime(exercise.restSeconds))")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            // Sets Section - Match CreateTemplateView style
+            VStack(spacing: 8) {
+                // Sets Header
+                HStack {
+                    Text("Set")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 40, alignment: .leading)
+                    
+                    Text("Previous")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                    
+                    Text("lbs")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 70)
+                    
+                    Text("Reps")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 60)
+                    
+                    Color.clear
+                        .frame(width: 44)
+                }
+                .padding(.horizontal, 8)
+                
+                // Set Rows
+                ForEach(exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })) { set in
+                    WorkoutSetRow(
+                        set: set,
+                        onComplete: onSetComplete,
+                        canDelete: exercise.sets.count > 1,
+                        onDelete: {
                             withAnimation {
-                                showDeleteConfirm = false
-                                offset = 0
+                                exercise.sets.removeAll { $0.id == set.id }
+                                // Renumber remaining sets
+                                let sortedSets = exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })
+                                for (index, remainingSet) in sortedSets.enumerated() {
+                                    remainingSet.setNumber = index + 1
+                                }
+                                try? modelContext.save()
                             }
                         }
-                    }
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: showDeleteConfirm ? "trash.fill" : "trash")
-                            .font(.system(size: 20))
-                        Text(showDeleteConfirm ? "Confirm" : "Delete")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: 80)
-                    .frame(maxHeight: .infinity)
-                    .background(showDeleteConfirm ? Color.red : Color.orange)
-                }
-            }
-            .cornerRadius(12)
-            .padding(.horizontal)
-            
-            // Main content
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(exercise.exerciseName)
-                            .font(.headline)
-                        HStack(spacing: 4) {
-                            Image(systemName: "timer")
-                                .font(.system(size: 11))
-                            Text("Rest: \(formatRestTime(exercise.restSeconds))")
-                                .font(.system(size: 12))
-                        }
-                        .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Button(action: { expandedSets.toggle() }) {
-                        Image(systemName: expandedSets ? "chevron.up" : "chevron.down")
-                            .foregroundColor(.secondary)
-                    }
+                    )
                 }
                 
-                if expandedSets {
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text("Set")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 40, alignment: .leading)
-                            Text("Previous")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity)
-                            Text("lbs")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 60)
-                            Text("Reps")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 60)
-                            Text("")
-                                .frame(width: 30)
-                        }
-                        
-                        ForEach(exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })) { set in
-                            SwipeableSetRow(
-                                set: set,
-                                onComplete: onSetComplete,
-                                onDelete: {
-                                    withAnimation {
-                                        exercise.sets.removeAll { $0.id == set.id }
-                                        // Renumber remaining sets
-                                        let sortedSets = exercise.sets.sorted(by: { $0.setNumber < $1.setNumber })
-                                        for (index, remainingSet) in sortedSets.enumerated() {
-                                            remainingSet.setNumber = index + 1
-                                        }
-                                        try? modelContext.save()
-                                    }
-                                }
-                            )
-                        }
-                        
-                        Button(action: {
-                            let newSetNumber = (exercise.sets.map { $0.setNumber }.max() ?? 0) + 1
-                            let newSet = WorkoutSet(setNumber: newSetNumber)
-                            exercise.sets.append(newSet)
-                        }) {
-                            Label("Add Set", systemImage: "plus")
-                                .font(.caption)
-                                .foregroundColor(.purple)
-                        }
-                        .padding(.top, 4)
-                    }
+                // Add Set Button - Match CreateTemplateView style
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16))
+                    Text("Add Set")
+                        .font(.system(size: 14, weight: .medium))
                 }
+                .foregroundColor(settings.accentColor.color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(settings.accentColor.color.opacity(0.1))
+                .cornerRadius(8)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !isProcessingAction else { return }
+                    isProcessingAction = true
+                    let newSetNumber = (exercise.sets.map { $0.setNumber }.max() ?? 0) + 1
+                    let newSet = WorkoutSet(setNumber: newSetNumber)
+                    exercise.sets.append(newSet)
+                    try? modelContext.save()
+                    isProcessingAction = false
+                }
+                .padding(.top, 4)
             }
-            .padding()
-            .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(12)
-            .padding(.horizontal)
-            .offset(x: offset)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if value.translation.width < -20 {
-                            offset = max(value.translation.width, -80)
-                        }
-                    }
-                    .onEnded { value in
-                        withAnimation(.spring()) {
-                            if value.translation.width < -50 {
-                                offset = -80
-                            } else {
-                                offset = 0
-                                showDeleteConfirm = false
-                            }
-                        }
-                    }
-            )
+            .padding(12)
+            .background(Color(.systemGray6).opacity(0.5))
+            .cornerRadius(10)
         }
+        .padding(.horizontal)
     }
 }
 
-struct SwipeableSetRow: View {
+struct WorkoutSetRow: View {
     let set: WorkoutSet
     let onComplete: () -> Void
+    let canDelete: Bool
     let onDelete: () -> Void
+    
     @State private var weight = ""
     @State private var reps = ""
-    @State private var offset: CGFloat = 0
-    @State private var showDeleteConfirm = false
     
     var body: some View {
-        ZStack {
-            // Delete background
-            HStack {
-                Spacer()
-                
-                Button(action: {
-                    if showDeleteConfirm {
-                        withAnimation(.spring()) {
-                            onDelete()
-                        }
-                    } else {
-                        withAnimation(.spring()) {
-                            showDeleteConfirm = true
-                        }
-                        // Reset after 2 seconds if not confirmed
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            withAnimation {
-                                showDeleteConfirm = false
-                                offset = 0
-                            }
-                        }
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: showDeleteConfirm ? "trash.fill" : "trash")
-                            .font(.system(size: 14))
-                        Text(showDeleteConfirm ? "Confirm" : "Delete")
-                            .font(.system(size: 10))
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: 70)
-                    .frame(maxHeight: .infinity)
-                    .background(showDeleteConfirm ? Color.red : Color.orange)
-                    .cornerRadius(8)
-                }
-            }
+        HStack(spacing: 8) {
+            Text("\(set.setNumber)")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundColor(.secondary)
+                .frame(width: 40, alignment: .leading)
+                .padding(.leading, 8)
             
-            // Main content
-            HStack {
-                Text("\(set.setNumber)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(width: 40, alignment: .leading)
-                
-                Text("-")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                
-                TextField("0", text: $weight)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.decimalPad)
-                    .frame(width: 60)
-                    .onChange(of: weight) { newValue in
-                        if let value = Double(newValue) {
-                            set.weight = value
-                        }
+            Text("-")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity)
+            
+            // Weight Field
+            TextField("0", text: $weight)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .multilineTextAlignment(.center)
+                .frame(width: 50)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 4)
+                .background(Color(.systemGray6))
+                .cornerRadius(6)
+                .keyboardType(.decimalPad)
+                .onChange(of: weight) { _, newValue in
+                    if let value = Double(newValue) {
+                        set.weight = value
                     }
-                
-                TextField("0", text: $reps)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.numberPad)
-                    .frame(width: 60)
-                    .onChange(of: reps) { newValue in
-                        if let value = Int(newValue) {
-                            set.reps = value
-                        }
-                    }
-                
-                Button(action: {
-                    set.toggleCompleted()
-                    if set.isCompleted {
-                        onComplete()
-                    }
-                }) {
-                    Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(set.isCompleted ? .green : .secondary)
                 }
-                .frame(width: 30)
+            
+            Text("lbs")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .frame(width: 20)
+            
+            // Reps Field
+            TextField("0", text: $reps)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .multilineTextAlignment(.center)
+                .frame(width: 40)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 4)
+                .background(Color(.systemGray6))
+                .cornerRadius(6)
+                .keyboardType(.numberPad)
+                .onChange(of: reps) { _, newValue in
+                    if let value = Int(newValue) {
+                        set.reps = value
+                    }
+                }
+            
+            // Complete/Delete Button
+            if canDelete {
+                Menu {
+                    Button(action: {
+                        set.toggleCompleted()
+                        if set.isCompleted {
+                            onComplete()
+                        }
+                    }) {
+                        Label(set.isCompleted ? "Mark Incomplete" : "Mark Complete", 
+                              systemImage: set.isCompleted ? "circle" : "checkmark.circle")
+                    }
+                    
+                    Button(role: .destructive, action: {
+                        SettingsManager.shared.impactFeedback(style: .medium)
+                        onDelete()
+                    }) {
+                        Label("Delete Set", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: set.isCompleted ? DesignConstants.Icons.check : DesignConstants.Icons.uncheck)
+                        .font(.system(size: 22))
+                        .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
+                        .frame(width: 44)
+                        .contentShape(Circle())
+                }
+            } else {
+                Image(systemName: set.isCompleted ? DesignConstants.Icons.check : DesignConstants.Icons.uncheck)
+                    .font(.system(size: 22))
+                    .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
+                    .frame(width: 44)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        set.toggleCompleted()
+                        if set.isCompleted {
+                            onComplete()
+                        }
+                    }
             }
-            .padding(.vertical, 4)
-            .background(Color(.systemBackground))
-            .cornerRadius(8)
-            .offset(x: offset)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if value.translation.width < -20 {
-                            offset = max(value.translation.width, -70)
-                        }
-                    }
-                    .onEnded { value in
-                        withAnimation(.spring()) {
-                            if value.translation.width < -40 {
-                                offset = -70
-                            } else {
-                                offset = 0
-                                showDeleteConfirm = false
-                            }
-                        }
-                    }
-            )
         }
+        .padding(.vertical, 2)
         .onAppear {
             weight = set.weight > 0 ? "\(Int(set.weight))" : ""
             reps = set.reps > 0 ? "\(set.reps)" : ""

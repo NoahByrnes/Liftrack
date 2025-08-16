@@ -5,6 +5,7 @@ struct TemplatesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \WorkoutTemplate.name) private var templates: [WorkoutTemplate]
     @State private var showingCreateTemplate = false
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationStack {
@@ -23,11 +24,11 @@ struct TemplatesView: View {
                         
                         Button(action: { 
                             showingCreateTemplate = true
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            settings.impactFeedback(style: .medium)
                         }) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 32))
-                                .foregroundColor(.purple)
+                                .foregroundColor(settings.accentColor.color)
                                 .symbolEffect(.pulse)
                         }
                     }
@@ -51,7 +52,7 @@ struct TemplatesView: View {
                         .padding(.horizontal)
                     }
                 }
-                .padding(.bottom, 100)
+                .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
             .background(Color(.systemGroupedBackground))
             .sheet(isPresented: $showingCreateTemplate) {
@@ -66,6 +67,7 @@ struct TemplateCard: View {
     let modelContext: ModelContext
     @State private var isPressed = false
     @State private var showingDeleteAlert = false
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationLink(destination: TemplateDetailView(template: template)) {
@@ -75,6 +77,13 @@ struct TemplateCard: View {
                         Text(template.name)
                             .font(.system(size: 20, weight: .semibold, design: .rounded))
                             .foregroundColor(.primary)
+                        
+                        if !template.templateDescription.isEmpty {
+                            Text(template.templateDescription)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
                         
                         HStack(spacing: 16) {
                             Label("\(template.exercises.count) exercises", systemImage: "figure.strengthtraining.traditional")
@@ -93,7 +102,7 @@ struct TemplateCard: View {
                     
                     Image(systemName: "chevron.right.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(.purple.opacity(0.8))
+                        .foregroundColor(settings.accentColor.color.opacity(0.8))
                 }
                 
                 // Exercise preview
@@ -104,8 +113,8 @@ struct TemplateCard: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(Color.purple.opacity(0.1))
-                                .foregroundColor(.purple)
+                                .background(settings.accentColor.color.opacity(0.1))
+                                .foregroundColor(settings.accentColor.color)
                                 .clipShape(Capsule())
                         }
                         
@@ -153,11 +162,13 @@ struct TemplateCard: View {
 }
 
 struct EmptyStateView: View {
+    @StateObject private var settings = SettingsManager.shared
+    
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "square.stack.3d.up.slash")
                 .font(.system(size: 60))
-                .foregroundColor(.purple.opacity(0.5))
+                .foregroundColor(settings.accentColor.color.opacity(0.5))
             
             Text("No Templates Yet")
                 .font(.system(size: 24, weight: .semibold, design: .rounded))

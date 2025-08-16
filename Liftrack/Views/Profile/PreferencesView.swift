@@ -139,6 +139,9 @@ struct PreferencesView: View {
                     .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(16)
                 }
+                
+                // Add bottom padding to clear tab bar
+                Color.clear.frame(height: DesignConstants.Spacing.tabBarClearance)
             }
             .padding()
         }

@@ -13,7 +13,7 @@ struct DataManagementView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Data & Backup")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Export Coming Soon", isPresented: $showExportAlert) {
@@ -55,7 +55,7 @@ struct DataManagementView: View {
                     color: .green
                 )
             }
-            .background(Color(.secondarySystemGroupedBackground))
+            .background(Color(UIColor.secondarySystemGroupedBackground))
             .cornerRadius(16)
         }
     }
@@ -74,7 +74,7 @@ struct DataManagementView: View {
                 
                 clearDataButton
             }
-            .background(Color(.secondarySystemGroupedBackground))
+            .background(Color(UIColor.secondarySystemGroupedBackground))
             .cornerRadius(16)
         }
     }
@@ -82,7 +82,7 @@ struct DataManagementView: View {
     private func exportButton(icon: String, title: String, subtitle: String, color: Color) -> some View {
         Button(action: {
             showExportAlert = true
-            settings.impactFeedback()
+            SettingsManager.shared.impactFeedback()
         }) {
             HStack {
                 Image(systemName: icon)
@@ -129,7 +129,11 @@ struct DataManagementView: View {
     private var clearDataButton: some View {
         Button(action: {
             showDeleteAlert = true
-            settings.impactFeedback(style: .heavy)
+            #if os(iOS)
+            SettingsManager.shared.impactFeedback(style: .heavy)
+            #else
+            SettingsManager.shared.impactFeedback()
+            #endif
         }) {
             HStack {
                 Image(systemName: "trash")

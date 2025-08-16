@@ -3,6 +3,7 @@ import SwiftUI
 struct ModernTabBar: View {
     @Binding var selectedTab: Int
     @Namespace private var animation
+    @StateObject private var settings = SettingsManager.shared
     
     let tabs = [
         TabItem(icon: "square.stack.3d.up", title: "Templates", tag: 0),
@@ -29,7 +30,7 @@ struct ModernTabBar: View {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedTab = tab.tag
                     }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    SettingsManager.shared.impactFeedback(style: .light)
                 }
             }
         }
@@ -55,28 +56,34 @@ struct TabButton: View {
     let isSelected: Bool
     let animation: Namespace.ID
     let action: () -> Void
+    @State private var animationTrigger = 0
     
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            if !isSelected {
+                animationTrigger += 1
+            }
+            action()
+        }) {
             VStack(spacing: 4) {
                 ZStack {
                     if isSelected {
                         Circle()
-                            .fill(Color.purple.opacity(0.15))
+                            .fill(SettingsManager.shared.accentColor.color.opacity(0.15))
                             .frame(width: 48, height: 48)
                             .matchedGeometryEffect(id: "selected", in: animation)
                     }
                     
                     Image(systemName: icon)
                         .font(.system(size: 22, weight: isSelected ? .semibold : .regular))
-                        .symbolEffect(.bounce, value: isSelected)
-                        .foregroundColor(isSelected ? .purple : .secondary)
+                        .symbolEffect(.bounce, value: animationTrigger)
+                        .foregroundColor(isSelected ? SettingsManager.shared.accentColor.color : .secondary)
                 }
                 .frame(height: 48)
                 
                 Text(title)
                     .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .purple : .secondary)
+                    .foregroundColor(isSelected ? SettingsManager.shared.accentColor.color : .secondary)
             }
             .frame(maxWidth: .infinity)
         }
@@ -89,5 +96,5 @@ struct TabButton: View {
         Spacer()
         ModernTabBar(selectedTab: .constant(1))
     }
-    .background(Color(.systemBackground))
+    .background(Color(UIColor.systemBackground))
 }

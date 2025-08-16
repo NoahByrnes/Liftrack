@@ -7,6 +7,7 @@ struct HistoryView: View {
            sort: \WorkoutSession.completedAt, order: .reverse)
     private var completedSessions: [WorkoutSession]
     @State private var selectedTimeRange = 0
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationStack {
@@ -50,7 +51,7 @@ struct HistoryView: View {
                         }
                     }
                 }
-                .padding(.bottom, 100)
+                .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
             .background(Color(.systemGroupedBackground))
         }
@@ -59,6 +60,7 @@ struct HistoryView: View {
 
 struct StatsOverview: View {
     let sessions: [WorkoutSession]
+    @StateObject private var settings = SettingsManager.shared
     
     var totalWorkouts: Int { sessions.count }
     var thisWeekWorkouts: Int {
@@ -77,7 +79,7 @@ struct StatsOverview: View {
                 icon: "calendar",
                 value: "\(totalWorkouts)",
                 label: "Total",
-                color: .purple
+                color: settings.accentColor.color
             )
             
             StatCard(
@@ -129,6 +131,7 @@ struct StatCard: View {
 struct SessionCard: View {
     let session: WorkoutSession
     @State private var isPressed = false
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationLink(destination: SessionDetailView(session: session)) {
@@ -159,7 +162,7 @@ struct SessionCard: View {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text("\(session.exercises.count)")
                             .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundColor(.purple)
+                            .foregroundColor(settings.accentColor.color)
                         Text("exercises")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
@@ -172,12 +175,12 @@ struct SessionCard: View {
                         ForEach(session.exercises.prefix(4).sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
                             ZStack {
                                 Circle()
-                                    .fill(Color.purple.opacity(0.1))
+                                    .fill(settings.accentColor.color.opacity(0.1))
                                     .frame(width: 32, height: 32)
                                 
                                 Text(String(exercise.exerciseName.prefix(2)).uppercased())
                                     .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(settings.accentColor.color)
                             }
                             .offset(x: CGFloat(exercise.orderIndex * -8))
                         }
@@ -302,12 +305,13 @@ struct SessionDetailView: View {
 struct StatBadge: View {
     let label: String
     let value: String
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.purple)
+                .foregroundColor(settings.accentColor.color)
             Text(label)
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
@@ -318,6 +322,7 @@ struct StatBadge: View {
 
 struct ExerciseDetailCard: View {
     let exercise: SessionExercise
+    @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -362,7 +367,7 @@ struct ExerciseDetailCard: View {
                             .frame(width: 50)
                         
                         Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(set.isCompleted ? .green : .secondary)
+                            .foregroundColor(set.isCompleted ? settings.accentColor.color : .secondary)
                             .frame(width: 50)
                     }
                 }
@@ -378,11 +383,13 @@ struct ExerciseDetailCard: View {
 }
 
 struct EmptyHistoryView: View {
+    @StateObject private var settings = SettingsManager.shared
+    
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 60))
-                .foregroundColor(.purple.opacity(0.5))
+                .foregroundColor(settings.accentColor.color.opacity(0.5))
             
             Text("No Workout History")
                 .font(.system(size: 24, weight: .semibold, design: .rounded))

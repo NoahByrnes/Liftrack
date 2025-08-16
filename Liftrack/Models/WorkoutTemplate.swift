@@ -5,13 +5,15 @@ import SwiftData
 final class WorkoutTemplate {
     var id: UUID
     var name: String
+    var templateDescription: String
     @Relationship(deleteRule: .cascade) var exercises: [WorkoutExercise]
     var createdAt: Date
     var lastUsedAt: Date?
     
-    init(name: String) {
+    init(name: String, description: String = "") {
         self.id = UUID()
         self.name = name
+        self.templateDescription = description
         self.exercises = []
         self.createdAt = Date()
     }
@@ -26,6 +28,7 @@ final class WorkoutExercise {
     var targetReps: Int
     var targetWeight: Double?
     var customRestSeconds: Int?
+    @Relationship(deleteRule: .cascade) var templateSets: [TemplateSet]
     
     init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: Int = 10, targetWeight: Double? = nil, customRestSeconds: Int? = nil) {
         self.id = UUID()
@@ -35,9 +38,25 @@ final class WorkoutExercise {
         self.targetReps = targetReps
         self.targetWeight = targetWeight
         self.customRestSeconds = customRestSeconds
+        self.templateSets = []
     }
     
     var restSeconds: Int {
         customRestSeconds ?? exercise.defaultRestSeconds
+    }
+}
+
+@Model
+final class TemplateSet {
+    var id: UUID
+    var setNumber: Int
+    var reps: Int
+    var weight: Double
+    
+    init(setNumber: Int, reps: Int, weight: Double) {
+        self.id = UUID()
+        self.setNumber = setNumber
+        self.reps = reps
+        self.weight = weight
     }
 }

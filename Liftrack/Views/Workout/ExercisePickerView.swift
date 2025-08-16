@@ -6,7 +6,8 @@ struct ExercisePickerView: View {
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @State private var searchText = ""
     @State private var showingCreateExercise = false
-    @State private var selectedExercises: Set<Exercise> = []
+    @State private var selectedExercises: [Exercise] = [] // Changed to Array to preserve order
+    @StateObject private var settings = SettingsManager.shared
     let onSelect: (Exercise) -> Void
     
     var filteredExercises: [Exercise] {
@@ -34,10 +35,10 @@ struct ExercisePickerView: View {
             List {
                 ForEach(filteredExercises) { exercise in
                     Button(action: { 
-                        if selectedExercises.contains(exercise) {
-                            selectedExercises.remove(exercise)
+                        if let index = selectedExercises.firstIndex(of: exercise) {
+                            selectedExercises.remove(at: index)
                         } else {
-                            selectedExercises.insert(exercise)
+                            selectedExercises.append(exercise)
                         }
                     }) {
                         HStack {
@@ -49,8 +50,24 @@ struct ExercisePickerView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Image(systemName: selectedExercises.contains(exercise) ? "checkmark.circle.fill" : "circle")
-                                .foregroundColor(selectedExercises.contains(exercise) ? .purple : .secondary)
+                            
+                            // Show order number if selected
+                            if let index = selectedExercises.firstIndex(of: exercise) {
+                                HStack(spacing: 4) {
+                                    Text("\(index + 1)")
+                                        .font(.caption)
+                                        .foregroundColor(.white)
+                                        .frame(width: 20, height: 20)
+                                        .background(settings.accentColor.color)
+                                        .clipShape(Circle())
+                                    
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(settings.accentColor.color)
+                                }
+                            } else {
+                                Image(systemName: "circle")
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -69,15 +86,16 @@ struct ExercisePickerView: View {
                         Button("Create New") {
                             showingCreateExercise = true
                         }
-                        .foregroundColor(.purple)
+                        .foregroundColor(settings.accentColor.color)
                     } else {
                         Button("Add (\(selectedExercises.count))") {
+                            // Pass exercises in the order they were selected
                             for exercise in selectedExercises {
                                 onSelect(exercise)
                             }
                             dismiss()
                         }
-                        .foregroundColor(.purple)
+                        .foregroundColor(settings.accentColor.color)
                         .fontWeight(.semibold)
                     }
                 }

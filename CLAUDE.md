@@ -78,3 +78,43 @@ swiftlint lint --path Liftrack
 - The project uses Xcode's native build system (no Swift Package Manager setup yet)
 - App icons are already configured for both iOS and macOS platforms
 - The app sandbox is configured for security from the start
+
+## Critical SwiftUI Patterns
+
+### Button vs onTapGesture in ForEach
+**Problem**: When using `Button` components inside a `ForEach` loop in SwiftUI, the button closures can capture stale indices or trigger multiple buttons simultaneously. This is a known SwiftUI issue with view identity and closure capture.
+
+**Solution**: Always use `onTapGesture` instead of `Button` for interactive elements inside `ForEach` loops.
+
+**Example of the issue (BAD):**
+```swift
+ForEach(items.indices, id: \.self) { index in
+    Button(action: { 
+        // This closure captures index at creation time
+        // Can trigger wrong item or multiple items
+        removeItem(at: index) 
+    }) {
+        Text("Remove")
+    }
+}
+```
+
+**Correct implementation (GOOD):**
+```swift
+ForEach(items, id: \.id) { item in
+    Text("Remove")
+        .onTapGesture {
+            // This executes with current state
+            if let index = items.firstIndex(where: { $0.id == item.id }) {
+                removeItem(at: index)
+            }
+        }
+}
+```
+
+**Key Points:**
+- Use `onTapGesture` for ALL interactive elements in ForEach loops
+- Iterate over objects directly, not indices
+- Look up current index when needed using `firstIndex(where:)`
+- Add `.contentShape(Rectangle())` or `.contentShape(Circle())` to ensure proper tap targets
+- This pattern was critical for fixing the sets add/remove buttons in CreateTemplateView

@@ -63,7 +63,7 @@ struct AboutView: View {
             }
             .padding(.vertical)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("About")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -97,7 +97,7 @@ struct InfoCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(Color(UIColor.secondarySystemGroupedBackground))
                 .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }

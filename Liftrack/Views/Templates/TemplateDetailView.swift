@@ -20,6 +20,13 @@ struct TemplateDetailView: View {
     
     var body: some View {
         List {
+            if !template.templateDescription.isEmpty {
+                Section("Description") {
+                    Text(template.templateDescription)
+                        .font(.body)
+                }
+            }
+            
             Section("Exercises") {
                 ForEach(template.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })) { exercise in
                     VStack(alignment: .leading, spacing: 8) {

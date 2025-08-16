@@ -18,20 +18,24 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
+                    // Header - Match Templates/History style
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Profile")
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                            Text("\(completedWorkouts) workouts completed")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        
+                        // Profile Avatar
                         Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 80))
+                            .font(.system(size: 44))
                             .foregroundColor(settings.accentColor.color)
-                        
-                        Text("Workout Enthusiast")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                        
-                        Text("Member since \(Date().formatted(date: .abbreviated, time: .omitted))")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
                     }
-                    .padding(.top, 20)
+                    .padding(.horizontal)
+                    .padding(.top, 10)
                     
                     // Stats Cards
                     HStack(spacing: 12) {
@@ -98,12 +102,11 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal)
                     
-                    Spacer(minLength: 100)
+                    Spacer(minLength: DesignConstants.Spacing.tabBarClearance)
                 }
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
         }
     }
     

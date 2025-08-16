@@ -76,6 +76,7 @@ class SettingsManager: ObservableObject {
         set { accentColorString = newValue.rawValue }
     }
     
+    #if os(iOS)
     func impactFeedback(style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
         if useHaptics {
             UIImpactFeedbackGenerator(style: style).impactOccurred()
@@ -87,4 +88,13 @@ class SettingsManager: ObservableObject {
             UINotificationFeedbackGenerator().notificationOccurred(type)
         }
     }
+    #else
+    func impactFeedback(style: Int = 0) {
+        // Haptic feedback not available on macOS
+    }
+    
+    func notificationFeedback(type: Int) {
+        // Haptic feedback not available on macOS
+    }
+    #endif
 }
