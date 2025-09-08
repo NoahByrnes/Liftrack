@@ -24,16 +24,44 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             if isLoading {
-                // Simple loading view
+                // Enhanced loading view with animation
                 ZStack {
                     Color(.systemBackground)
-                    VStack(spacing: 20) {
-                        Image(systemName: "figure.strengthtraining.traditional")
-                            .font(.system(size: 60))
-                            .foregroundColor(settings.accentColor.color)
-                        Text("Liftrack")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                    VStack(spacing: 24) {
+                        ZStack {
+                            Circle()
+                                .stroke(settings.accentColor.color.opacity(0.2), lineWidth: 4)
+                                .frame(width: 100, height: 100)
+                            
+                            Circle()
+                                .trim(from: 0, to: 0.3)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [settings.accentColor.color, settings.accentColor.color.opacity(0.5)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                                )
+                                .frame(width: 100, height: 100)
+                                .rotationEffect(.degrees(isLoading ? 360 : 0))
+                                .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isLoading)
+                            
+                            Image(systemName: "figure.strengthtraining.traditional")
+                                .font(.system(size: 40))
+                                .foregroundColor(settings.accentColor.color)
+                        }
+                        
+                        VStack(spacing: 8) {
+                            Text("Liftrack")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            
+                            Text("Loading your workout data...")
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .opacity(0.8)
+                        }
                     }
                 }
                 .transition(.opacity)
@@ -41,24 +69,41 @@ struct ContentView: View {
                 // Main swipe navigation
                 NavigationStack {
                     ZStack(alignment: .bottom) {
-                        // Swipeable pages
+                        // Swipeable pages with smooth transitions
                         TabView(selection: $selectedTab) {
-                            // Combined Workout + Programs view
-                            WorkoutHubView()
+                            // Condensed Workout view
+                            WorkoutTabView()
                                 .tag(0)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
                             
-                            // History view
-                            HistoryView(showingProfile: .constant(false))
+                            // Unified Library view
+                            LibraryTabView()
                                 .tag(1)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .leading).combined(with: .opacity),
+                                    removal: .move(edge: .trailing).combined(with: .opacity)
+                                ))
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
-                        .safeAreaInset(edge: .top) {
-                            // Persistent header with profile icon and page dots
+                        .animation(.easeInOut(duration: 0.3), value: selectedTab)
+                        .onChange(of: selectedTab) { oldValue, newValue in
+                            if oldValue != newValue {
+                                settings.selectionFeedback()
+                            }
+                        }
+                        .overlay(alignment: .top) {
+                            // Clean header overlay
                             VStack(spacing: 0) {
+                                Spacer()
+                                    .frame(height: 0) // No extra space
+                                
                                 HStack {
-                                    Text(selectedTab == 0 ? "Workout" : "History")
-                                        .font(.largeTitle)
-                                        .fontWeight(.bold)
+                                    Text(selectedTab == 0 ? "Workout" : "Library")
+                                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                                        .foregroundColor(.primary)
                                     
                                     Spacer()
                                     
@@ -67,23 +112,34 @@ struct ContentView: View {
                                         Image(systemName: "person.circle.fill")
                                             .font(.system(size: 32))
                                             .foregroundColor(settings.accentColor.color)
+                                            .symbolRenderingMode(.hierarchical)
                                     }
                                 }
-                                .padding(.horizontal)
-                                .padding(.top, 10)
+                                .padding(.horizontal, 20)
                                 
                                 // Page indicator dots
                                 HStack(spacing: 8) {
                                     ForEach(0..<2) { index in
                                         Circle()
-                                            .fill(selectedTab == index ? settings.accentColor.color : Color(.systemGray4))
-                                            .frame(width: 8, height: 8)
-                                            .animation(.easeInOut(duration: 0.2), value: selectedTab)
+                                            .fill(selectedTab == index ? settings.accentColor.color : Color(.systemGray5))
+                                            .frame(width: selectedTab == index ? 8 : 6, height: selectedTab == index ? 8 : 6)
+                                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
                                     }
                                 }
-                                .padding(.bottom, 8)
+                                .padding(.bottom, 2)
                             }
-                            .background(.ultraThinMaterial)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(.systemBackground).opacity(0.95),
+                                        Color(.systemBackground).opacity(0.8),
+                                        Color(.systemBackground).opacity(0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                .ignoresSafeArea()
+                            )
                         }
                         
                         // Minimized workout bar at bottom (if active)

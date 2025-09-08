@@ -423,61 +423,127 @@ struct ProgramRow: View {
 
 struct UnifiedEmptyTemplatesView: View {
     let onCreateTap: () -> Void
+    @State private var animate = false
     
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
+        VStack(spacing: 20) {
+            // Animated icon
+            ZStack {
+                Circle()
+                    .fill(SettingsManager.shared.accentColor.color.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                    .scaleEffect(animate ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animate)
+                
+                Image(systemName: "doc.text")
+                    .font(.system(size: 36))
+                    .foregroundColor(SettingsManager.shared.accentColor.color)
+                    .rotationEffect(.degrees(animate ? 5 : -5))
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: animate)
+            }
             
-            Text("No Templates Yet")
-                .font(.system(size: 18, weight: .semibold))
-            
-            Text("Create your first workout template")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
+            VStack(spacing: 8) {
+                Text("Your Templates Library")
+                    .font(.system(size: 20, weight: .bold))
+                
+                Text("Save your favorite workouts\nand reuse them anytime")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             
             Button(action: onCreateTap) {
-                Text("Create Template")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(SettingsManager.shared.accentColor.color)
-                    .cornerRadius(10)
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18))
+                    Text("Create First Template")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [SettingsManager.shared.accentColor.color, SettingsManager.shared.accentColor.color.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+                .shadow(color: SettingsManager.shared.accentColor.color.opacity(0.3), radius: 8, y: 4)
             }
+            .buttonStyle(ScaleButtonStyle())
         }
-        .padding(.vertical, 40)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.tertiarySystemGroupedBackground))
+        )
+        .onAppear { animate = true }
     }
 }
 
 struct UnifiedEmptyProgramsView: View {
     let onCreateTap: () -> Void
+    @State private var animate = false
     
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "calendar")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
+        VStack(spacing: 20) {
+            // Animated icon
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                    .scaleEffect(animate ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: animate)
+                
+                Image(systemName: "calendar.badge.plus")
+                    .font(.system(size: 36))
+                    .foregroundColor(.green)
+                    .rotationEffect(.degrees(animate ? 5 : -5))
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: animate)
+            }
             
-            Text("No Programs Yet")
-                .font(.system(size: 18, weight: .semibold))
-            
-            Text("Create a structured training program")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
+            VStack(spacing: 8) {
+                Text("Structured Training")
+                    .font(.system(size: 20, weight: .bold))
+                
+                Text("Create multi-week programs\nwith progressive overload")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             
             Button(action: onCreateTap) {
-                Text("Create Program")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(SettingsManager.shared.accentColor.color)
-                    .cornerRadius(10)
+                HStack {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 18))
+                    Text("Build Your Program")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: [.green, .green.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+                .shadow(color: Color.green.opacity(0.3), radius: 8, y: 4)
             }
+            .buttonStyle(ScaleButtonStyle())
         }
-        .padding(.vertical, 40)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.tertiarySystemGroupedBackground))
+        )
+        .onAppear { animate = true }
     }
 }
 

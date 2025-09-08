@@ -16,11 +16,11 @@ struct TemplatesView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Animated Header
+                    // Animated Header with visual hierarchy
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Training")
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .font(.system(size: 36, weight: .bold, design: .rounded))
                                 .opacity(appearAnimation ? 1 : 0)
                                 .offset(y: appearAnimation ? 0 : 20)
                                 .animation(.spring(response: 0.35, dampingFraction: 0.8).delay(0.05), value: appearAnimation)
@@ -28,9 +28,9 @@ struct TemplatesView: View {
                             Text(selectedSegment == 0 ? 
                                 "\(templates.count) workout templates" : 
                                 "\(programs.count) training programs")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .opacity(appearAnimation ? 1 : 0)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.secondary.opacity(0.8))
+                                .opacity(appearAnimation ? 0.8 : 0)
                                 .animation(.easeOut(duration: 0.3).delay(0.1), value: appearAnimation)
                         }
                         Spacer()

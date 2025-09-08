@@ -16,11 +16,25 @@ struct HistoryView: View {
     @State private var showingWorkoutDetail: WorkoutSession? = nil
     @State private var appearAnimation = false
     @State private var chartAnimation = false
+    @State private var isRefreshing = false
     @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationStack {
             ScrollView {
+                // Pull to refresh indicator
+                if isRefreshing {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.2)
+                        Spacer()
+                    }
+                    .padding(.top, 20)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                
                 VStack(spacing: 24) {
                     // Add top padding to account for fixed header
                     Color.clear.frame(height: 120)
@@ -90,6 +104,9 @@ struct HistoryView: View {
                 .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
             .background(Color(.systemGroupedBackground))
+            .refreshable {
+                await refreshData()
+            }
             .onAppear {
                 withAnimation {
                     appearAnimation = true
@@ -103,6 +120,40 @@ struct HistoryView: View {
                     WorkoutDetailView(session: session)
                 }
             }
+        }
+    }
+    
+    private func refreshData() async {
+        // Add haptic feedback for pull to refresh
+        await MainActor.run {
+            settings.impactFeedback(style: .medium)
+            withAnimation {
+                isRefreshing = true
+            }
+        }
+        
+        // Simulate a refresh delay (in real app, this would be data fetching)
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
+        await MainActor.run {
+            withAnimation {
+                isRefreshing = false
+                // Reset animations to replay them
+                appearAnimation = false
+                chartAnimation = false
+            }
+            
+            // Replay animations after refresh
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation {
+                    appearAnimation = true
+                }
+                withAnimation(.easeOut(duration: 0.4).delay(0.2)) {
+                    chartAnimation = true
+                }
+            }
+            
+            settings.notificationFeedback(type: .success)
         }
     }
 }

@@ -105,12 +105,22 @@ class SettingsManager: ObservableObject {
             UINotificationFeedbackGenerator().notificationOccurred(type)
         }
     }
+    
+    func selectionFeedback() {
+        if useHaptics {
+            UISelectionFeedbackGenerator().selectionChanged()
+        }
+    }
     #else
     func impactFeedback(style: Int = 0) {
         // Haptic feedback not available on macOS
     }
     
     func notificationFeedback(type: Int) {
+        // Haptic feedback not available on macOS
+    }
+    
+    func selectionFeedback() {
         // Haptic feedback not available on macOS
     }
     #endif
