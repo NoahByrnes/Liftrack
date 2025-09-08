@@ -1,0 +1,334 @@
+import Foundation
+import SwiftData
+
+class ProgressionCalculator {
+    
+    // Calculate next workout's weights based on performance
+    static func calculateProgression(
+        for exercise: WorkoutExercise,
+        program: Program,
+        weekNumber: Int,
+        previousSessions: [WorkoutSession]
+    ) -> ProgressionRecommendation {
+        
+        // Get last performance for this exercise
+        let lastPerformance = getLastPerformance(
+            exerciseName: exercise.exercise.name,
+            from: previousSessions
+        )
+        
+        // Use scientific progression if enabled
+        if program.useScientificProgression {
+            return calculateScientificProgression(
+                exercise: exercise,
+                program: program,
+                weekNumber: weekNumber,
+                lastPerformance: lastPerformance,
+                previousSessions: previousSessions
+            )
+        }
+        
+        // Base calculation on progression type
+        switch program.progressionType {
+        case .none:
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "Manual progression",
+                confidence: 1.0
+            )
+            
+        case .simple:
+            // Simple linear progression
+            let weeksSinceStart = weekNumber - 1
+            let shouldProgress = weeksSinceStart % 1 == 0 // Every week
+            let increase = shouldProgress ? program.weeklyWeightIncrease : 0
+            
+            return ProgressionRecommendation(
+                weightChange: increase,
+                reason: "Week \(weekNumber) progression",
+                confidence: 0.8
+            )
+            
+        case .custom:
+            // Use individual exercise settings
+            return calculateCustomProgression(
+                exercise: exercise,
+                weekNumber: weekNumber,
+                lastPerformance: lastPerformance
+            )
+        }
+    }
+    
+    private static func calculateCustomProgression(
+        exercise: WorkoutExercise,
+        weekNumber: Int,
+        lastPerformance: ExercisePerformance?
+    ) -> ProgressionRecommendation {
+        
+        guard exercise.progressionEnabled else {
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "Progression disabled",
+                confidence: 1.0
+            )
+        }
+        
+        // Check if it's time to progress based on frequency
+        let shouldProgress = (weekNumber - 1) % exercise.progressionFrequency == 0
+        guard shouldProgress else {
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "Not scheduled (every \(exercise.progressionFrequency) weeks)",
+                confidence: 1.0
+            )
+        }
+        
+        // Analyze last performance
+        guard let performance = lastPerformance else {
+            // First time, use default progression
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "First session",
+                confidence: 0.5
+            )
+        }
+        
+        // Check for failures
+        if performance.failureRate > 0.3 {
+            // More than 30% sets failed - consider deload
+            if exercise.autoDeloadEnabled {
+                return ProgressionRecommendation(
+                    weightChange: -exercise.weeklyWeightIncrease,
+                    reason: "High failure rate (\(Int(performance.failureRate * 100))%)",
+                    confidence: 0.9,
+                    suggestion: .deload
+                )
+            } else {
+                return ProgressionRecommendation(
+                    weightChange: 0,
+                    reason: "Too many failures - maintain weight",
+                    confidence: 0.8,
+                    suggestion: .maintain
+                )
+            }
+        }
+        
+        // Rep-based progression
+        if exercise.repProgressionEnabled {
+            let bounds = exercise.repRangeBounds
+            
+            if performance.averageReps >= Double(bounds.max) {
+                // Hit upper rep range - increase weight
+                return ProgressionRecommendation(
+                    weightChange: exercise.weeklyWeightIncrease,
+                    reason: "Hit \(bounds.max) reps consistently",
+                    confidence: 0.95,
+                    suggestion: .increase
+                )
+            } else if performance.averageReps < Double(bounds.min) {
+                // Below minimum reps - might need to decrease
+                if exercise.autoDeloadEnabled {
+                    return ProgressionRecommendation(
+                        weightChange: -exercise.weeklyWeightIncrease / 2,
+                        reason: "Below minimum reps (\(bounds.min))",
+                        confidence: 0.7,
+                        suggestion: .deload
+                    )
+                }
+            }
+        }
+        
+        // Performance score based progression
+        if performance.performanceScore > 0.9 {
+            // Excellent performance - progress
+            return ProgressionRecommendation(
+                weightChange: exercise.weeklyWeightIncrease,
+                reason: "Strong performance (score: \(Int(performance.performanceScore * 100))%)",
+                confidence: 0.9,
+                suggestion: .increase
+            )
+        } else if performance.performanceScore < 0.7 {
+            // Poor performance - maintain
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "Performance below threshold",
+                confidence: 0.7,
+                suggestion: .maintain
+            )
+        }
+        
+        // Default progression if meeting minimum standards
+        if performance.averageReps >= Double(exercise.minRepThreshold) {
+            return ProgressionRecommendation(
+                weightChange: exercise.weeklyWeightIncrease,
+                reason: "Met minimum standards",
+                confidence: 0.75,
+                suggestion: .increase
+            )
+        }
+        
+        return ProgressionRecommendation(
+            weightChange: 0,
+            reason: "Maintain current weight",
+            confidence: 0.6,
+            suggestion: .maintain
+        )
+    }
+    
+    private static func getLastPerformance(
+        exerciseName: String,
+        from sessions: [WorkoutSession]
+    ) -> ExercisePerformance? {
+        
+        // Find most recent session with this exercise
+        for session in sessions.sorted(by: { ($0.completedAt ?? Date.distantPast) > ($1.completedAt ?? Date.distantPast) }) {
+            if let exercise = session.exercises.first(where: { $0.exerciseName == exerciseName }) {
+                return analyzeExercisePerformance(exercise)
+            }
+        }
+        
+        return nil
+    }
+    
+    private static func analyzeExercisePerformance(_ exercise: SessionExercise) -> ExercisePerformance {
+        let completedSets = exercise.sets.filter { $0.isCompleted && !$0.isWarmup }
+        
+        guard !completedSets.isEmpty else {
+            return ExercisePerformance(
+                averageReps: 0,
+                averageWeight: 0,
+                failureRate: 1.0,
+                performanceScore: 0,
+                estimated1RM: nil
+            )
+        }
+        
+        let totalReps = completedSets.map { $0.reps }.reduce(0, +)
+        let avgReps = Double(totalReps) / Double(completedSets.count)
+        
+        let totalWeight = completedSets.map { $0.weight }.reduce(0, +)
+        let avgWeight = totalWeight / Double(completedSets.count)
+        
+        let failedSets = completedSets.filter { $0.isFailed }.count
+        let failureRate = Double(failedSets) / Double(completedSets.count)
+        
+        let avgScore = completedSets.map { $0.performanceScore }.reduce(0, +) / Double(completedSets.count)
+        
+        let estimated1RM = OneRMCalculator.calculateAverage1RM(weight: avgWeight, reps: Int(avgReps))
+        
+        return ExercisePerformance(
+            averageReps: avgReps,
+            averageWeight: avgWeight,
+            failureRate: failureRate,
+            performanceScore: avgScore,
+            estimated1RM: estimated1RM
+        )
+    }
+    
+    // Scientific progression using 1RM calculations and periodization
+    private static func calculateScientificProgression(
+        exercise: WorkoutExercise,
+        program: Program,
+        weekNumber: Int,
+        lastPerformance: ExercisePerformance?,
+        previousSessions: [WorkoutSession]
+    ) -> ProgressionRecommendation {
+        
+        // Get current 1RM estimate
+        guard let performance = lastPerformance,
+              let current1RM = performance.estimated1RM else {
+            // No previous data, start conservatively
+            return ProgressionRecommendation(
+                weightChange: 0,
+                reason: "No baseline 1RM data",
+                confidence: 0.3,
+                suggestion: .maintain
+            )
+        }
+        
+        // Determine training goal from program
+        let trainingGoal = program.primaryGoal
+        
+        // Determine experience level
+        let experience = determineExperienceLevel(from: previousSessions)
+        
+        // Get periodization model
+        let periodization = program.periodizationModel
+        
+        // Calculate progression using scientific model
+        let recommendation = ProgressiveOverloadCalculator.calculateProgression(
+            exercise: exercise.exercise.name,
+            current1RM: current1RM,
+            targetGoal: trainingGoal,
+            experience: experience,
+            weekNumber: weekNumber,
+            periodization: periodization,
+            lastPerformance: performance
+        )
+        
+        // Calculate target weight based on 1RM percentage for training zone
+        let targetIntensity = trainingGoal.intensityRange
+        let targetPercentage = (targetIntensity.min + targetIntensity.max) / 2
+        let targetWeight = current1RM * targetPercentage
+        
+        return ProgressionRecommendation(
+            weightChange: recommendation.recommendedValue - recommendation.currentValue,
+            reason: recommendation.rationale,
+            confidence: recommendation.confidence,
+            suggestion: recommendation.percentageChange > 0 ? .increase : 
+                       recommendation.percentageChange < 0 ? .deload : .maintain,
+            oneRM: current1RM,
+            trainingZone: trainingGoal,
+            percentageOf1RM: targetPercentage
+        )
+    }
+    
+    private static func determineExperienceLevel(from sessions: [WorkoutSession]) -> TrainingExperience {
+        let sessionCount = sessions.count
+        
+        // Estimate based on workout history
+        if sessionCount < 50 {
+            return .beginner
+        } else if sessionCount < 150 {
+            return .novice
+        } else if sessionCount < 300 {
+            return .intermediate
+        } else if sessionCount < 500 {
+            return .advanced
+        } else {
+            return .elite
+        }
+    }
+}
+
+struct ProgressionRecommendation {
+    let weightChange: Double
+    let reason: String
+    let confidence: Double // 0-1 confidence in recommendation
+    var suggestion: ProgressionSuggestion = .maintain
+    var oneRM: Double? = nil
+    var trainingZone: TrainingGoal? = nil
+    var percentageOf1RM: Double? = nil
+}
+
+enum ProgressionSuggestion {
+    case increase
+    case maintain
+    case deload
+}
+
+struct ExercisePerformance {
+    let averageReps: Double
+    let averageWeight: Double
+    let failureRate: Double // 0-1 percentage of failed sets
+    let performanceScore: Double // 0-1 overall performance
+    let estimated1RM: Double?
+    
+    init(averageReps: Double, averageWeight: Double, failureRate: Double, performanceScore: Double, estimated1RM: Double? = nil) {
+        self.averageReps = averageReps
+        self.averageWeight = averageWeight
+        self.failureRate = failureRate
+        self.performanceScore = performanceScore
+        self.estimated1RM = estimated1RM ?? (averageWeight > 0 && averageReps > 0 ? OneRMCalculator.calculateAverage1RM(weight: averageWeight, reps: Int(averageReps)) : nil)
+    }
+}

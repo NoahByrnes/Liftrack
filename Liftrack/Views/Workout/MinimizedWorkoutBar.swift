@@ -3,54 +3,62 @@ import SwiftData
 
 struct MinimizedWorkoutBar: View {
     let session: WorkoutSession
-    @StateObject private var timerManager = WorkoutTimerManager.shared
+    @Binding var selectedTab: Int
+    @StateObject private var timerManager = EnhancedWorkoutTimerManager.shared
     @StateObject private var settings = SettingsManager.shared
     @State private var showingActiveWorkout = false
     @State private var showingCancelAlert = false
     @Environment(\.modelContext) private var modelContext
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Resume button
-            Image(systemName: "chevron.up.circle.fill")
-                .font(.system(size: 24))
-                .foregroundColor(settings.accentColor.color)
-                .onTapGesture {
-                    timerManager.isMinimized = false
-                    showingActiveWorkout = true
-                }
-            
-            // Workout info
-            VStack(alignment: .leading, spacing: 2) {
-                Text(session.templateName ?? "Quick Workout")
-                    .font(.system(size: 14, weight: .semibold))
-                    .lineLimit(1)
+        HStack(spacing: 0) {
+            // Main expand area - takes up most of the bar
+            HStack(spacing: 12) {
+                // Resume button
+                Image(systemName: "chevron.up.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(settings.accentColor.color)
                 
-                HStack(spacing: 8) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 10))
-                    Text(formatTime(timerManager.elapsedTime))
-                        .font(.system(size: 12, design: .monospaced))
+                // Workout info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.templateName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(1)
+                    
+                    HStack(spacing: 8) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 10))
+                        Text(formatTime(timerManager.elapsedTime))
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                    .foregroundColor(.secondary)
                 }
-                .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                // Sets completed indicator
+                if let completedSets = completedSetsCount() {
+                    Text("\(completedSets.completed)/\(completedSets.total)")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(settings.accentColor.color.opacity(0.2))
+                        .cornerRadius(6)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                timerManager.isMinimized = false
+                selectedTab = 1 // Switch to workout tab
+                showingActiveWorkout = true
             }
             
-            Spacer()
-            
-            // Sets completed indicator
-            if let completedSets = completedSetsCount() {
-                Text("\(completedSets.completed)/\(completedSets.total)")
-                    .font(.system(size: 12, weight: .medium))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(settings.accentColor.color.opacity(0.2))
-                    .cornerRadius(6)
-            }
-            
-            // Cancel button
+            // Cancel button area with expanded touch target
             Image(systemName: "xmark.circle.fill")
                 .font(.system(size: 20))
                 .foregroundColor(.secondary)
+                .frame(width: 44, height: 44) // Expanded touch area
+                .contentShape(Rectangle())
                 .onTapGesture {
                     showingCancelAlert = true
                 }
@@ -113,7 +121,7 @@ struct MinimizedWorkoutBar: View {
     
     return VStack {
         Spacer()
-        MinimizedWorkoutBar(session: session)
+        MinimizedWorkoutBar(session: session, selectedTab: .constant(1))
     }
     .modelContainer(container)
 }

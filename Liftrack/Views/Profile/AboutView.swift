@@ -6,6 +6,14 @@ import UIKit
 struct AboutView: View {
     @StateObject private var settings = SettingsManager.shared
     
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+    
+    var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -14,15 +22,45 @@ struct AboutView: View {
                     Image(systemName: "figure.strengthtraining.traditional")
                         .font(.system(size: 80))
                         .foregroundColor(settings.accentColor.color)
+                        .padding()
+                        .background(
+                            Circle()
+                                .fill(settings.accentColor.color.opacity(0.1))
+                        )
                     
                     Text("Liftrack")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
                     
-                    Text("Version 1.0.0")
-                        .font(.subheadline)
+                    Text("Version \(appVersion) (Build \(buildNumber))")
+                        .font(.system(size: 16))
                         .foregroundColor(.secondary)
                 }
                 .padding(.top, 20)
+                
+                // What's New Section
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("What's New", systemImage: "sparkles")
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        WhatsNewItem(text: "Live Activities for rest timers")
+                        WhatsNewItem(text: "Interactive workout history charts")
+                        WhatsNewItem(text: "Auto-select text fields")
+                        WhatsNewItem(text: "Enhanced timer persistence")
+                        WhatsNewItem(text: "Improved haptic feedback")
+                        WhatsNewItem(text: "Edit mode for safer deletion")
+                    }
+                    .padding()
+                    #if os(iOS)
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                    #else
+                    .background(Color.gray.opacity(0.2))
+                    #endif
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+                }
                 
                 // Info Cards
                 VStack(spacing: 16) {
@@ -33,9 +71,21 @@ struct AboutView: View {
                     )
                     
                     InfoCard(
+                        icon: "iphone.and.arrow.forward",
+                        title: "Compatibility",
+                        content: "iOS 18.5+, macOS 15.5+, visionOS"
+                    )
+                    
+                    InfoCard(
                         icon: "hammer.fill",
                         title: "Built with",
-                        content: "SwiftUI & SwiftData"
+                        content: "SwiftUI, SwiftData, ActivityKit"
+                    )
+                    
+                    InfoCard(
+                        icon: "lock.shield.fill",
+                        title: "Privacy First",
+                        content: "All data stored locally on device"
                     )
                     
                     InfoCard(
@@ -54,7 +104,7 @@ struct AboutView: View {
                 
                 // Attribution
                 VStack(spacing: 8) {
-                    Text("Made with ❤️ for fitness enthusiasts")
+                    Text("Made with dedication for fitness enthusiasts")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                     
@@ -63,6 +113,9 @@ struct AboutView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.top, 20)
+                
+                // Add bottom padding to clear tab bar
+                Color.clear.frame(height: DesignConstants.Spacing.tabBarClearance)
             }
             .padding(.vertical)
         }
@@ -75,6 +128,24 @@ struct AboutView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+    }
+}
+
+struct WhatsNewItem: View {
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.green)
+            
+            Text(text)
+                .font(.system(size: 15))
+                .foregroundColor(.primary)
+            
+            Spacer()
+        }
     }
 }
 

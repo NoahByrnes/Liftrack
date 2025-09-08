@@ -2,12 +2,22 @@ import SwiftUI
 import SwiftData
 #if canImport(UIKit)
 import UIKit
+import PhotosUI
 #endif
 
 struct ProfileView: View {
     @Query private var allSessions: [WorkoutSession]
     @Query private var allTemplates: [WorkoutTemplate]
     @StateObject private var settings = SettingsManager.shared
+    @State private var showingOnboarding = false
+    @State private var appearAnimation = false
+    @State private var avatarScale = 0.8
+    @State private var showingImagePicker = false
+    @State private var editingName = false
+    @State private var tempDisplayName = ""
+    #if os(iOS)
+    @State private var selectedImage: PhotosPickerItem? = nil
+    #endif
     
     var completedWorkouts: Int {
         allSessions.filter { $0.completedAt != nil }.count
@@ -21,26 +31,89 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header - Match Templates/History style
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Profile")
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                    // Profile Picture and Name Section
+                    VStack(spacing: 16) {
+                        // Profile Picture
+                        Button(action: { showingImagePicker = true }) {
+                            ZStack {
+                                if !settings.profileImageData.isEmpty,
+                                   let uiImage = UIImage(data: settings.profileImageData) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                } else {
+                                    Circle()
+                                        .fill(Color(.secondarySystemGroupedBackground))
+                                        .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Image(systemName: "person.crop.circle.fill")
+                                                .font(.system(size: 80))
+                                                .foregroundColor(settings.accentColor.color)
+                                        )
+                                }
+                                
+                                // Edit overlay
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                                    .frame(width: 100, height: 100)
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(.white)
+                                    )
+                                    .opacity(0.8)
+                            }
+                        }
+                        .scaleEffect(avatarScale)
+                        .opacity(appearAnimation ? 1 : 0)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.1), value: appearAnimation)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.6), value: avatarScale)
+                        
+                        // Display Name
+                        VStack(spacing: 4) {
+                            if editingName {
+                                HStack {
+                                    TextField("Enter your name", text: $tempDisplayName)
+                                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                                        .multilineTextAlignment(.center)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                        .frame(maxWidth: 200)
+                                        .onSubmit {
+                                            settings.userDisplayName = tempDisplayName
+                                            editingName = false
+                                        }
+                                    
+                                    Button("Done") {
+                                        settings.userDisplayName = tempDisplayName
+                                        editingName = false
+                                    }
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(settings.accentColor.color)
+                                }
+                            } else {
+                                Text(settings.userDisplayName.isEmpty ? "Tap to set name" : settings.userDisplayName)
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(settings.userDisplayName.isEmpty ? .secondary : .primary)
+                                    .onTapGesture {
+                                        tempDisplayName = settings.userDisplayName
+                                        editingName = true
+                                    }
+                            }
+                            
                             Text("\(completedWorkouts) workouts completed")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        
-                        // Profile Avatar
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundColor(settings.accentColor.color)
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 20)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.8).delay(0.15), value: appearAnimation)
                     }
                     .padding(.horizontal)
                     .padding(.top, 10)
                     
-                    // Stats Cards
+                    // Animated Stats Cards
                     HStack(spacing: 12) {
                         StatsCard(
                             icon: "figure.strengthtraining.traditional",
@@ -48,6 +121,9 @@ struct ProfileView: View {
                             label: "Workouts",
                             color: settings.accentColor.color
                         )
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 30)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.2), value: appearAnimation)
                         
                         StatsCard(
                             icon: "clock.fill",
@@ -55,6 +131,9 @@ struct ProfileView: View {
                             label: "Total Time",
                             color: .blue
                         )
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 30)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.25), value: appearAnimation)
                         
                         StatsCard(
                             icon: "square.stack.3d.up",
@@ -62,6 +141,9 @@ struct ProfileView: View {
                             label: "Templates",
                             color: .green
                         )
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 30)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.3), value: appearAnimation)
                     }
                     .padding(.horizontal)
                     
@@ -102,6 +184,16 @@ struct ProfileView: View {
                                 color: .gray
                             )
                         }
+                        
+                        Button(action: { showingOnboarding = true }) {
+                            SettingsRow(
+                                icon: "sparkles",
+                                title: "Setup Assistant",
+                                subtitle: "Personalize your training",
+                                color: .purple
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.horizontal)
                     
@@ -114,9 +206,29 @@ struct ProfileView: View {
             .background(Color.gray.opacity(0.1))
             #endif
             #if os(iOS)
-            .navigationBarHidden(true)
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .onAppear {
+                withAnimation {
+                    appearAnimation = true
+                    avatarScale = 1.0
+                }
+            }
+            // Onboarding view removed - add basic onboarding if needed
+            #if os(iOS)
+            .photosPicker(isPresented: $showingImagePicker, selection: $selectedImage, matching: .images)
+            .onChange(of: selectedImage) { oldValue, newValue in
+                Task {
+                    if let selectedImage = newValue,
+                       let data = try? await selectedImage.loadTransferable(type: Data.self) {
+                        settings.profileImageData = data
+                    }
+                }
+            }
             #endif
         }
+        .background(Color(.systemGroupedBackground))
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {

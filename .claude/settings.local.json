@@ -11,7 +11,8 @@
       "Bash(mkdir:*)",
       "Bash(xcodebuild:*)",
       "Bash(find:*)",
-      "Bash(swift:*)"
+      "Bash(swift:*)",
+      "Bash(grep:*)"
     ],
     "defaultMode": "acceptEdits"
   }

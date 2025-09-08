@@ -4,6 +4,7 @@ import SwiftData
 struct TemplateDetailView: View {
     let template: WorkoutTemplate
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State private var showingEditView = false
     
     private func formatRestTime(_ seconds: Int) -> String {
@@ -73,14 +74,20 @@ struct TemplateDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         #endif
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Done") {
+                    dismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Edit") {
                     showingEditView = true
                 }
             }
         }
         .sheet(isPresented: $showingEditView) {
-            Text("Edit Template Coming Soon")
+            EditTemplateView(template: template)
         }
     }
 }

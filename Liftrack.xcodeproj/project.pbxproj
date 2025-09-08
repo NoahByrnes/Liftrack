@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0556DFA12E5597A500AAB52E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0556DFA02E5597A500AAB52E /* WidgetKit.framework */; };
+		0556DFA32E5597A500AAB52E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0556DFA22E5597A500AAB52E /* SwiftUI.framework */; };
+		0556DFB42E5597A500AAB52E /* LiftrackWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0556DF9E2E5597A500AAB52E /* LiftrackWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0556DE172E4EF5F000AAB52E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +27,47 @@
 			remoteGlobalIDString = 0556DE072E4EF5F000AAB52E;
 			remoteInfo = Liftrack;
 		};
+		0556DFB22E5597A500AAB52E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0556DE002E4EF5F000AAB52E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0556DF9D2E5597A500AAB52E;
+			remoteInfo = LiftrackWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0556DFB92E5597A500AAB52E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0556DFB42E5597A500AAB52E /* LiftrackWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0556DE082E4EF5F000AAB52E /* Liftrack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Liftrack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0556DE162E4EF5F000AAB52E /* LiftrackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiftrackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0556DE202E4EF5F000AAB52E /* LiftrackUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiftrackUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0556DF9E2E5597A500AAB52E /* LiftrackWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiftrackWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0556DFA02E5597A500AAB52E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		0556DFA22E5597A500AAB52E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0556DFB52E5597A500AAB52E /* Exceptions for "LiftrackWidget" folder in "LiftrackWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0556DF9D2E5597A500AAB52E /* LiftrackWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0556DE0A2E4EF5F000AAB52E /* Liftrack */ = {
@@ -43,6 +83,14 @@
 		0556DE232E4EF5F000AAB52E /* LiftrackUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LiftrackUITests;
+			sourceTree = "<group>";
+		};
+		0556DFA42E5597A500AAB52E /* LiftrackWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0556DFB52E5597A500AAB52E /* Exceptions for "LiftrackWidget" folder in "LiftrackWidgetExtension" target */,
+			);
+			path = LiftrackWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +117,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0556DF9B2E5597A500AAB52E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0556DFA32E5597A500AAB52E /* SwiftUI.framework in Frameworks */,
+				0556DFA12E5597A500AAB52E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +135,8 @@
 				0556DE0A2E4EF5F000AAB52E /* Liftrack */,
 				0556DE192E4EF5F000AAB52E /* LiftrackTests */,
 				0556DE232E4EF5F000AAB52E /* LiftrackUITests */,
+				0556DFA42E5597A500AAB52E /* LiftrackWidget */,
+				0556DF9F2E5597A500AAB52E /* Frameworks */,
 				0556DE092E4EF5F000AAB52E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +147,18 @@
 				0556DE082E4EF5F000AAB52E /* Liftrack.app */,
 				0556DE162E4EF5F000AAB52E /* LiftrackTests.xctest */,
 				0556DE202E4EF5F000AAB52E /* LiftrackUITests.xctest */,
+				0556DF9E2E5597A500AAB52E /* LiftrackWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		0556DF9F2E5597A500AAB52E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0556DFA02E5597A500AAB52E /* WidgetKit.framework */,
+				0556DFA22E5597A500AAB52E /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +171,12 @@
 				0556DE042E4EF5F000AAB52E /* Sources */,
 				0556DE052E4EF5F000AAB52E /* Frameworks */,
 				0556DE062E4EF5F000AAB52E /* Resources */,
+				0556DFB92E5597A500AAB52E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0556DFB32E5597A500AAB52E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0556DE0A2E4EF5F000AAB52E /* Liftrack */,
@@ -163,6 +234,28 @@
 			productReference = 0556DE202E4EF5F000AAB52E /* LiftrackUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		0556DF9D2E5597A500AAB52E /* LiftrackWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0556DFB62E5597A500AAB52E /* Build configuration list for PBXNativeTarget "LiftrackWidgetExtension" */;
+			buildPhases = (
+				0556DF9A2E5597A500AAB52E /* Sources */,
+				0556DF9B2E5597A500AAB52E /* Frameworks */,
+				0556DF9C2E5597A500AAB52E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0556DFA42E5597A500AAB52E /* LiftrackWidget */,
+			);
+			name = LiftrackWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = LiftrackWidgetExtension;
+			productReference = 0556DF9E2E5597A500AAB52E /* LiftrackWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +277,9 @@
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = 0556DE072E4EF5F000AAB52E;
 					};
+					0556DF9D2E5597A500AAB52E = {
+						CreatedOnToolsVersion = 16.4;
+					};
 				};
 			};
 			buildConfigurationList = 0556DE032E4EF5F000AAB52E /* Build configuration list for PBXProject "Liftrack" */;
@@ -203,6 +299,7 @@
 				0556DE072E4EF5F000AAB52E /* Liftrack */,
 				0556DE152E4EF5F000AAB52E /* LiftrackTests */,
 				0556DE1F2E4EF5F000AAB52E /* LiftrackUITests */,
+				0556DF9D2E5597A500AAB52E /* LiftrackWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +320,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0556DE1E2E4EF5F000AAB52E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0556DF9C2E5597A500AAB52E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +357,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0556DF9A2E5597A500AAB52E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +376,11 @@
 			isa = PBXTargetDependency;
 			target = 0556DE072E4EF5F000AAB52E /* Liftrack */;
 			targetProxy = 0556DE212E4EF5F000AAB52E /* PBXContainerItemProxy */;
+		};
+		0556DFB32E5597A500AAB52E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0556DF9D2E5597A500AAB52E /* LiftrackWidgetExtension */;
+			targetProxy = 0556DFB22E5597A500AAB52E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -397,6 +513,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -436,6 +553,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -553,6 +671,65 @@
 			};
 			name = Release;
 		};
+		0556DFB72E5597A500AAB52E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5DGLFC4WVM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiftrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiftrackWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nagbyr.Liftrack.LiftrackWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0556DFB82E5597A500AAB52E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5DGLFC4WVM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiftrackWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiftrackWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nagbyr.Liftrack.LiftrackWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -588,6 +765,15 @@
 			buildConfigurations = (
 				0556DE312E4EF5F000AAB52E /* Debug */,
 				0556DE322E4EF5F000AAB52E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0556DFB62E5597A500AAB52E /* Build configuration list for PBXNativeTarget "LiftrackWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0556DFB72E5597A500AAB52E /* Debug */,
+				0556DFB82E5597A500AAB52E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

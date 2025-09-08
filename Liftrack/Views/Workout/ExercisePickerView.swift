@@ -3,6 +3,7 @@ import SwiftData
 
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Exercise.name) private var exercises: [Exercise]
     @State private var searchText = ""
     @State private var showingCreateExercise = false
@@ -32,8 +33,62 @@ struct ExercisePickerView: View {
     
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(filteredExercises) { exercise in
+            if exercises.isEmpty {
+                // Empty state - no exercises in database
+                VStack(spacing: 20) {
+                    Image(systemName: "dumbbell")
+                        .font(.system(size: 60))
+                        .foregroundColor(.secondary)
+                    
+                    Text("No Exercises Found")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Create a new exercise or restore default exercises")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            showingCreateExercise = true
+                        }) {
+                            Label("Create New Exercise", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(settings.accentColor.color)
+                                .cornerRadius(10)
+                        }
+                        
+                        Button(action: {
+                            reseedExercises()
+                        }) {
+                            Label("Restore Default Exercises", systemImage: "arrow.clockwise")
+                                .font(.headline)
+                                .foregroundColor(settings.accentColor.color)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(settings.accentColor.color.opacity(0.1))
+                                .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding()
+                .navigationTitle("Exercises")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                    }
+                }
+            } else {
+                List {
+                    ForEach(filteredExercises) { exercise in
                     Button(action: { 
                         if let index = selectedExercises.firstIndex(of: exercise) {
                             selectedExercises.remove(at: index)
@@ -102,13 +157,22 @@ struct ExercisePickerView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingCreateExercise) {
-                CreateExerciseView { newExercise in
-                    onSelect(newExercise)
-                    dismiss()
-                }
             }
         }
+        .sheet(isPresented: $showingCreateExercise) {
+            CreateExerciseView { newExercise in
+                onSelect(newExercise)
+                dismiss()
+            }
+        }
+    }
+    
+    private func reseedExercises() {
+        // Clear the UserDefaults flag to allow re-seeding
+        UserDefaults.standard.set(false, forKey: "HasSeededInitialExercises")
+        
+        // Call the seeder
+        DataSeeder.seedExercisesIfNeeded(context: modelContext)
     }
 }
 

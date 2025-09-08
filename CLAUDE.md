@@ -118,3 +118,83 @@ ForEach(items, id: \.id) { item in
 - Look up current index when needed using `firstIndex(where:)`
 - Add `.contentShape(Rectangle())` or `.contentShape(Circle())` to ensure proper tap targets
 - This pattern was critical for fixing the sets add/remove buttons in CreateTemplateView
+
+## Architecture Guidelines - CRITICAL
+
+### Core vs Optional Features
+**Problem Prevention**: The codebase previously had "smart" features (AI, progression calculations, etc.) deeply embedded in core models, making them impossible to disable without breaking everything.
+
+**Strict Rules**:
+1. **Core models must be minimal** - Only include fields that are absolutely essential for basic functionality
+2. **Use composition over modification** - Advanced features should EXTEND core models, not modify them
+3. **Feature flags from the start** - Any "smart" or advanced feature must be behind a feature flag
+
+**Example of GOOD architecture**:
+```swift
+// Core model - minimal, essential fields only
+@Model
+final class WorkoutSet {
+    var id: UUID
+    var weight: Double
+    var reps: Int
+    var isCompleted: Bool
+    // That's it! No RPE, no targetWeight, no progression fields
+}
+
+// Smart features in separate extension (in SmartFeatures.swift)
+extension WorkoutSet {
+    struct SmartMetrics {
+        var rpe: Int?
+        var targetWeight: Double?
+        var performanceScore: Double?
+    }
+    // Smart features are OPTIONAL additions, not core
+}
+```
+
+**Example of BAD architecture** (what we just fixed):
+```swift
+// Don't do this - mixing core and smart features
+@Model
+final class WorkoutSet {
+    var weight: Double
+    var reps: Int
+    var rpe: Int? // ❌ Smart feature in core model
+    var targetWeight: Double // ❌ Progression feature in core
+    var isFailed: Bool // ❌ Advanced tracking in core
+}
+```
+
+### Dependency Management
+**When adding new features**:
+1. Ask: "Can the app work without this?" If yes, it's not core
+2. Ask: "Will removing this break basic functionality?" If yes, you've coupled too tightly
+3. Use protocols/extensions for optional features, not direct model modifications
+4. Keep UI components modular - a view that uses smart features should be separate from core views
+
+### File Organization for Features
+**Disabled Features Pattern**: When temporarily disabling features:
+- Rename to `.disabled` extension (e.g., `MagicWorkoutView.swift.disabled`)
+- Don't just comment out - Xcode still tries to compile .swift files
+- Keep related components together so they can be re-enabled as a unit
+
+### Testing Build After Major Changes
+After removing or adding features, ALWAYS:
+1. Run a clean build: `xcodebuild clean`
+2. Check for cascading dependencies
+3. Don't try to fix all errors at once - disable entire feature chains if needed
+
+### Hierarchy Principles
+**The app follows this strict hierarchy**:
+```
+Sets → Exercises → Workouts → Programs (optional) → Program Library
+```
+
+- **WorkoutSet**: Atomic unit of work (weight, reps, completed state)
+- **SessionExercise**: Exercise containing multiple sets
+- **WorkoutSession**: Single workout (may reference a program)
+- **WorkoutTemplate**: Reusable workout blueprint
+- **Program**: Container for scheduled workouts over time
+- **Program Library**: User's collection of programs
+
+Each level should only know about the level directly below it. Programs shouldn't directly manipulate sets, for example.

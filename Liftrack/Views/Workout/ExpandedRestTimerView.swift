@@ -5,27 +5,41 @@ import UIKit
 
 struct ExpandedRestTimerView: View {
     @Binding var remainingTime: Int
+    let totalDuration: Int
     let isRunning: Bool
     let onDismiss: () -> Void
     let onStop: () -> Void
-    @State private var totalTime: Int = 90
     @StateObject private var settings = SettingsManager.shared
+    @StateObject private var timerManager = EnhancedWorkoutTimerManager.shared
+    @State private var animationProgress: CGFloat = 1.0
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 32) {
                 // Timer Display
                 ZStack {
+                    // Background circle
                     Circle()
                         .stroke(Color.gray.opacity(0.2), lineWidth: 12)
                         .frame(width: 250, height: 250)
                     
+                    // Smooth animated progress circle
                     Circle()
-                        .trim(from: 0, to: isRunning && totalTime > 0 ? CGFloat(remainingTime) / CGFloat(totalTime) : 1)
-                        .stroke(settings.accentColor.color, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                        .trim(from: 0, to: animationProgress)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    settings.accentColor.color,
+                                    settings.accentColor.color.opacity(0.8)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                        )
                         .frame(width: 250, height: 250)
                         .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 0.5), value: remainingTime)
+                        .animation(.linear(duration: 1), value: animationProgress)
                     
                     VStack(spacing: 8) {
                         Text(formatTime(remainingTime))
@@ -38,12 +52,32 @@ struct ExpandedRestTimerView: View {
                         }
                     }
                 }
+                .onAppear {
+                    // Set initial progress
+                    animationProgress = timerManager.restProgress
+                }
+                .onChange(of: timerManager.restTimeRemaining) { _, newValue in
+                    // Update animation when time changes
+                    withAnimation(.linear(duration: 0.5)) {
+                        if timerManager.restTotalDuration > 0 {
+                            animationProgress = CGFloat(newValue) / CGFloat(timerManager.restTotalDuration)
+                        }
+                    }
+                }
+                .onChange(of: isRunning) { _, running in
+                    if running && timerManager.restTotalDuration > 0 {
+                        // Start smooth countdown animation for the entire duration
+                        withAnimation(.linear(duration: Double(remainingTime))) {
+                            animationProgress = 0
+                        }
+                    }
+                }
                 
                 // Quick adjustment buttons
                 if isRunning {
                     HStack(spacing: 32) {
                         Button(action: {
-                            remainingTime = max(0, remainingTime - 15)
+                            timerManager.adjustRestTime(by: -15)
                         }) {
                             VStack {
                                 Image(systemName: "minus.circle.fill")
@@ -56,11 +90,7 @@ struct ExpandedRestTimerView: View {
                         }
                         
                         Button(action: {
-                            remainingTime += 15
-                            // Update total time if we're adding beyond the original
-                            if remainingTime > totalTime {
-                                totalTime = remainingTime
-                            }
+                            timerManager.adjustRestTime(by: 15)
                         }) {
                             VStack {
                                 Image(systemName: "plus.circle.fill")
@@ -114,10 +144,6 @@ struct ExpandedRestTimerView: View {
                 }
             }
         }
-        .onAppear {
-            // Capture the initial total time for progress calculation
-            totalTime = max(remainingTime, 90)
-        }
     }
     
     private func formatTime(_ totalSeconds: Int) -> String {
@@ -130,6 +156,7 @@ struct ExpandedRestTimerView: View {
 #Preview {
     ExpandedRestTimerView(
         remainingTime: .constant(45),
+        totalDuration: 90,
         isRunning: true,
         onDismiss: {},
         onStop: {}

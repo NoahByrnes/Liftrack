@@ -66,6 +66,13 @@ class SettingsManager: ObservableObject {
     @AppStorage("useLargerText") var useLargerText: Bool = false
     @AppStorage("showRestTimerAutomatically") var showRestTimerAutomatically: Bool = true
     
+    // Profile settings
+    @AppStorage("userDisplayName") var userDisplayName: String = ""
+    @AppStorage("profileImageData") var profileImageData: Data = Data()
+    @AppStorage("preferredWeightUnit") var preferredWeightUnit: String = "lbs"
+    @AppStorage("lastUsedGreetingIndices") var lastUsedGreetingIndicesData: Data = Data()
+    @AppStorage("currentGreetingIndex") var currentGreetingIndex: Int = -1
+    
     var appearanceMode: AppearanceMode {
         get { AppearanceMode(rawValue: appearanceModeString) ?? .system }
         set { appearanceModeString = newValue.rawValue }
@@ -74,6 +81,16 @@ class SettingsManager: ObservableObject {
     var accentColor: AccentColor {
         get { AccentColor(rawValue: accentColorString) ?? .purple }
         set { accentColorString = newValue.rawValue }
+    }
+    
+    var lastUsedGreetingIndices: [Int] {
+        get {
+            guard !lastUsedGreetingIndicesData.isEmpty else { return [] }
+            return (try? JSONDecoder().decode([Int].self, from: lastUsedGreetingIndicesData)) ?? []
+        }
+        set {
+            lastUsedGreetingIndicesData = (try? JSONEncoder().encode(newValue)) ?? Data()
+        }
     }
     
     #if os(iOS)

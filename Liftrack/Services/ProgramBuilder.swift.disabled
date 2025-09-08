@@ -1,0 +1,356 @@
+import Foundation
+import SwiftData
+
+/// This is the MISSING PIECE - it actually USES the intelligent algorithms when building programs
+class ProgramBuilder {
+    
+    /// Build an intelligent program that uses all our algorithms
+    static func buildIntelligentProgram(
+        name: String,
+        templates: [WorkoutTemplate],
+        duration: Int,
+        userProfile: UserProfile,
+        workoutHistory: [WorkoutSession],
+        modelContext: ModelContext
+    ) -> Program {
+        
+        // Create the program with intelligent settings
+        let program = Program(
+            name: name,
+            description: "AI-optimized program",
+            durationWeeks: duration
+        )
+        
+        // Configure based on user profile
+        program.useScientificProgression = true
+        program.primaryGoal = userProfile.primaryGoal.toTrainingGoal()
+        program.experienceLevel = userProfile.experience.toTrainingExperience()
+        program.periodizationModel = selectOptimalPeriodization(
+            experience: userProfile.experience,
+            goal: userProfile.primaryGoal
+        )
+        
+        // Set progression rate based on experience
+        program.weeklyWeightIncrease = calculateOptimalWeightIncrease(
+            experience: userProfile.experience
+        )
+        
+        // Smart deload scheduling
+        program.deloadWeek = calculateDeloadFrequency(
+            experience: userProfile.experience,
+            duration: duration
+        )
+        
+        program.workoutTemplates = templates
+        
+        // Generate INTELLIGENT weeks with calculated weights
+        generateIntelligentWeeks(
+            program: program,
+            templates: templates,
+            workoutHistory: workoutHistory,
+            userProfile: userProfile
+        )
+        
+        return program
+    }
+    
+    /// Generate weeks with CALCULATED starting weights and progression
+    private static func generateIntelligentWeeks(
+        program: Program,
+        templates: [WorkoutTemplate],
+        workoutHistory: [WorkoutSession],
+        userProfile: UserProfile
+    ) {
+        
+        program.programWeeks.removeAll()
+        
+        // Build exercise history map
+        let exerciseHistory = buildExerciseHistoryMap(from: workoutHistory)
+        
+        for weekNum in 1...program.durationWeeks {
+            
+            // Determine if this is a special week
+            let isDeloadWeek = shouldBeDeloadWeek(
+                weekNum: weekNum,
+                experience: userProfile.experience
+            )
+            
+            // Create the week
+            let week = ProgramWeek(
+                weekNumber: weekNum,
+                name: generateWeekName(weekNum: weekNum, isDeload: isDeloadWeek),
+                isDeload: isDeloadWeek
+            )
+            
+            // Apply periodization model to this week
+            let weekIntensity = calculateWeekIntensity(
+                weekNum: weekNum,
+                totalWeeks: program.durationWeeks,
+                model: program.periodizationModel,
+                isDeload: isDeloadWeek
+            )
+            
+            // Create workouts for this week
+            var dayNum = 1
+            for (templateIndex, template) in templates.enumerated() {
+                
+                // Smart scheduling (don't put similar workouts back-to-back)
+                let scheduledDay = calculateOptimalDay(
+                    templateIndex: templateIndex,
+                    totalTemplates: templates.count,
+                    weekDay: dayNum
+                )
+                
+                let workout = ProgramWorkout(
+                    dayNumber: scheduledDay,
+                    dayName: template.name,
+                    template: template,
+                    isRestDay: false
+                )
+                
+                // CALCULATE starting weights for each exercise in this template
+                for exercise in template.exercises {
+                    
+                    // Get history for this specific exercise
+                    let exerciseSpecificHistory = exerciseHistory[exercise.exercise.name] ?? []
+                    
+                    // Use IntelligentProgressionEngine to calculate optimal weight
+                    let prescription = IntelligentProgressionEngine.getNextWorkout(
+                        for: exercise.exercise,
+                        history: exerciseSpecificHistory
+                    )
+                    
+                    // Store calculated weights in the workout
+                    // This is where the MAGIC happens - we're using the algorithms!
+                    workout.targetWeightIncrease = calculateProgressionForWeek(
+                        baseWeight: prescription.weight,
+                        weekNum: weekNum,
+                        weekIntensity: weekIntensity,
+                        experience: userProfile.experience
+                    )
+                    
+                    // Store target reps based on goal and intensity
+                    workout.targetRepsIncrease = calculateRepsForIntensity(
+                        goal: userProfile.primaryGoal,
+                        intensity: weekIntensity
+                    )
+                }
+                
+                week.scheduledWorkouts.append(workout)
+                dayNum = scheduledDay + 2 // Space out workouts
+            }
+            
+            // Fill rest days
+            fillRestDays(week: week)
+            
+            // Add week to program
+            program.programWeeks.append(week)
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private static func buildExerciseHistoryMap(from sessions: [WorkoutSession]) -> [String: [SessionExercise]] {
+        var historyMap: [String: [SessionExercise]] = [:]
+        
+        for session in sessions where session.completedAt != nil {
+            for exercise in session.exercises {
+                if historyMap[exercise.exerciseName] == nil {
+                    historyMap[exercise.exerciseName] = []
+                }
+                historyMap[exercise.exerciseName]?.append(exercise)
+            }
+        }
+        
+        return historyMap
+    }
+    
+    private static func selectOptimalPeriodization(
+        experience: ExperienceLevel,
+        goal: UserProfile.Goal
+    ) -> PeriodizationModel {
+        switch (experience, goal) {
+        case (.beginner, _):
+            return .linear // Simple for beginners
+        case (.advanced, .strength):
+            return .block // Block for advanced strength
+        case (_, .muscle):
+            return .undulating // Best for hypertrophy
+        case (.intermediate, .balanced):
+            return .linear // Steady progression
+        default:
+            return .linear
+        }
+    }
+    
+    private static func calculateOptimalWeightIncrease(experience: ExperienceLevel) -> Double {
+        switch experience {
+        case .beginner:
+            return 5.0  // 5 lbs per week
+        case .intermediate:
+            return 2.5  // 2.5 lbs per week
+        case .advanced:
+            return 2.5  // 2.5 lbs per 2 weeks (handled by frequency)
+        }
+    }
+    
+    private static func calculateDeloadFrequency(experience: ExperienceLevel, duration: Int) -> Int {
+        let baseFrequency: Int
+        switch experience {
+        case .beginner:
+            baseFrequency = 8  // Every 8 weeks
+        case .intermediate:
+            baseFrequency = 6  // Every 6 weeks
+        case .advanced:
+            baseFrequency = 4  // Every 4 weeks
+        }
+        
+        // Adjust if program is shorter
+        return min(baseFrequency, duration - 1)
+    }
+    
+    private static func shouldBeDeloadWeek(weekNum: Int, experience: ExperienceLevel) -> Bool {
+        let deloadFrequency = calculateDeloadFrequency(experience: experience, duration: 999)
+        return weekNum > 0 && weekNum % deloadFrequency == 0
+    }
+    
+    private static func generateWeekName(weekNum: Int, isDeload: Bool) -> String {
+        if isDeload {
+            return "Week \(weekNum) - Recovery"
+        }
+        
+        // Descriptive names based on typical progression
+        switch weekNum {
+        case 1:
+            return "Week 1 - Foundation"
+        case 2:
+            return "Week 2 - Adaptation"
+        case 3:
+            return "Week 3 - Progress"
+        case 4:
+            return "Week 4 - Intensify"
+        default:
+            return "Week \(weekNum)"
+        }
+    }
+    
+    private static func calculateWeekIntensity(
+        weekNum: Int,
+        totalWeeks: Int,
+        model: PeriodizationModel,
+        isDeload: Bool
+    ) -> Double {
+        
+        if isDeload {
+            return 0.6  // 60% for deload
+        }
+        
+        let progressionRatio = Double(weekNum) / Double(totalWeeks)
+        
+        switch model {
+        case .linear:
+            // Gradually increase from 70% to 85%
+            return 0.70 + (progressionRatio * 0.15)
+            
+        case .undulating:
+            // Wave pattern
+            let weekInCycle = weekNum % 3
+            switch weekInCycle {
+            case 1: return 0.85  // Heavy
+            case 2: return 0.70  // Light
+            case 0: return 0.775 // Medium
+            default: return 0.75
+            }
+            
+        case .block:
+            // Blocks of different intensities
+            let blockNum = (weekNum - 1) / 3
+            switch blockNum % 3 {
+            case 0: return 0.75  // Volume block
+            case 1: return 0.85  // Intensity block
+            case 2: return 0.70  // Recovery block
+            default: return 0.75
+            }
+            
+        case .conjugate:
+            return 0.80  // Consistent moderate intensity
+        }
+    }
+    
+    private static func calculateOptimalDay(
+        templateIndex: Int,
+        totalTemplates: Int,
+        weekDay: Int
+    ) -> Int {
+        // Smart scheduling - spread workouts throughout week
+        let daysPerWeek = 7
+        let restDaysBetween = max(1, (daysPerWeek - totalTemplates) / totalTemplates)
+        
+        return min(
+            1 + (templateIndex * (restDaysBetween + 1)),
+            daysPerWeek
+        )
+    }
+    
+    private static func calculateProgressionForWeek(
+        baseWeight: Double,
+        weekNum: Int,
+        weekIntensity: Double,
+        experience: ExperienceLevel
+    ) -> Double {
+        
+        // Calculate cumulative progression
+        let weeklyRate = experience.weeklyProgressionRate
+        let cumulativeIncrease = pow(1 + weeklyRate, Double(weekNum - 1))
+        
+        // Apply intensity modifier
+        let intensityAdjustedWeight = baseWeight * cumulativeIncrease * weekIntensity
+        
+        // Round to nearest 2.5 lbs
+        return round(intensityAdjustedWeight / 2.5) * 2.5
+    }
+    
+    private static func calculateRepsForIntensity(
+        goal: UserProfile.Goal,
+        intensity: Double
+    ) -> Int {
+        
+        // Based on intensity percentage, determine optimal reps
+        switch (goal, intensity) {
+        case (.strength, let i) where i > 0.85:
+            return 3  // Heavy sets
+        case (.strength, _):
+            return 5
+            
+        case (.muscle, let i) where i > 0.80:
+            return 6
+        case (.muscle, let i) where i > 0.70:
+            return 10
+        case (.muscle, _):
+            return 12
+            
+        case (.balanced, let i) where i > 0.80:
+            return 5
+        case (.balanced, _):
+            return 8
+            
+        case (.endurance, _):
+            return 15
+        }
+    }
+    
+    private static func fillRestDays(week: ProgramWeek) {
+        for day in 1...7 {
+            if !week.scheduledWorkouts.contains(where: { $0.dayNumber == day }) {
+                let restDay = ProgramWorkout(
+                    dayNumber: day,
+                    dayName: "Rest Day",
+                    isRestDay: true
+                )
+                week.scheduledWorkouts.append(restDay)
+            }
+        }
+    }
+}
+
+// Extensions are already defined in MagicCreateProgramView.swift

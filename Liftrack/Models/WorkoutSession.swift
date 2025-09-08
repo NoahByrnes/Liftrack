@@ -11,12 +11,22 @@ final class WorkoutSession {
     var notes: String?
     @Relationship(deleteRule: .cascade) var exercises: [SessionExercise]
     
-    init(template: WorkoutTemplate? = nil, templateName: String = "Quick Workout") {
+    // Program context
+    var programId: UUID?
+    var programName: String?
+    var programWeek: Int?
+    var programDay: Int?
+    
+    init() {
         self.id = UUID()
-        self.templateId = template?.id
-        self.templateName = template?.name ?? templateName
+        self.templateId = nil
+        self.templateName = "Quick Workout"
         self.startedAt = Date()
         self.exercises = []
+        self.programId = nil
+        self.programName = nil
+        self.programWeek = nil
+        self.programDay = nil
     }
     
     var duration: TimeInterval? {
@@ -36,21 +46,21 @@ final class SessionExercise {
     var exerciseName: String
     var orderIndex: Int
     @Relationship(deleteRule: .cascade) var sets: [WorkoutSet]
-    var exercise: Exercise
     var customRestSeconds: Int?
+    var supersetGroupId: String?
     
-    init(exercise: Exercise, orderIndex: Int, customRestSeconds: Int? = nil) {
+    init(exercise: Exercise, orderIndex: Int, customRestSeconds: Int? = nil, supersetGroupId: String? = nil) {
         self.id = UUID()
         self.exerciseId = exercise.id
         self.exerciseName = exercise.name
         self.orderIndex = orderIndex
         self.sets = []
-        self.exercise = exercise
-        self.customRestSeconds = customRestSeconds
+        self.customRestSeconds = customRestSeconds ?? exercise.defaultRestSeconds
+        self.supersetGroupId = supersetGroupId
     }
     
     var restSeconds: Int {
-        customRestSeconds ?? exercise.defaultRestSeconds
+        customRestSeconds ?? 90 // Default rest time
     }
 }
 
@@ -63,6 +73,7 @@ final class WorkoutSet {
     var isCompleted: Bool
     var completedAt: Date?
     var isWarmup: Bool = false
+    var notes: String = ""
     
     init(setNumber: Int, weight: Double = 0, reps: Int = 0, isWarmup: Bool = false) {
         self.id = UUID()
@@ -71,6 +82,7 @@ final class WorkoutSet {
         self.reps = reps
         self.isCompleted = false
         self.isWarmup = isWarmup
+        self.notes = ""
     }
     
     func toggleCompleted() {

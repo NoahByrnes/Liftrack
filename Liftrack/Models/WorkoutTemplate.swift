@@ -28,9 +28,10 @@ final class WorkoutExercise {
     var targetReps: Int
     var targetWeight: Double?
     var customRestSeconds: Int?
+    var supersetGroupId: String? = nil
     @Relationship(deleteRule: .cascade) var templateSets: [TemplateSet]
     
-    init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: Int = 10, targetWeight: Double? = nil, customRestSeconds: Int? = nil) {
+    init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: Int = 10, targetWeight: Double? = nil, customRestSeconds: Int? = nil, supersetGroupId: String? = nil) {
         self.id = UUID()
         self.exercise = exercise
         self.orderIndex = orderIndex
@@ -38,6 +39,7 @@ final class WorkoutExercise {
         self.targetReps = targetReps
         self.targetWeight = targetWeight
         self.customRestSeconds = customRestSeconds
+        self.supersetGroupId = supersetGroupId
         self.templateSets = []
     }
     

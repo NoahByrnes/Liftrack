@@ -2,13 +2,24 @@ import Foundation
 import SwiftData
 
 struct DataSeeder {
+    private static let hasSeededKey = "HasSeededInitialExercises"
+    
     static func seedExercisesIfNeeded(context: ModelContext) {
+        // Quick check if we've already seeded
+        if UserDefaults.standard.bool(forKey: hasSeededKey) {
+            return
+        }
+        
         let fetchDescriptor = FetchDescriptor<Exercise>()
         
         do {
             let existingExercises = try context.fetch(fetchDescriptor)
             if existingExercises.isEmpty {
                 seedInitialExercises(context: context)
+                UserDefaults.standard.set(true, forKey: hasSeededKey)
+            } else {
+                // Mark as seeded if we have exercises
+                UserDefaults.standard.set(true, forKey: hasSeededKey)
             }
         } catch {
             print("Error checking for existing exercises: \(error)")

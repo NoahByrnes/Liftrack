@@ -9,10 +9,10 @@ struct ModernTabBar: View {
     @StateObject private var settings = SettingsManager.shared
     
     let tabs = [
-        TabItem(icon: "square.stack.3d.up", title: "Templates", tag: 0),
-        TabItem(icon: "figure.strengthtraining.traditional", title: "Workout", tag: 1),
-        TabItem(icon: "chart.line.uptrend.xyaxis", title: "History", tag: 2),
-        TabItem(icon: "person.crop.circle", title: "Profile", tag: 3)
+        TabItem(icon: "figure.strengthtraining.traditional", title: "Workout", tag: 0),
+        TabItem(icon: "chart.line.uptrend.xyaxis", title: "History", tag: 1),
+        TabItem(icon: "doc.text", title: "Templates", tag: 2),
+        TabItem(icon: "person.circle", title: "Profile", tag: 3)
     ]
     
     struct TabItem {

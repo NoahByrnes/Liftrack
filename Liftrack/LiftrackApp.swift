@@ -7,24 +7,75 @@
 
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @main
 struct LiftrackApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Exercise.self,
-            WorkoutTemplate.self,
-            WorkoutExercise.self,
-            WorkoutSession.self,
-            SessionExercise.self,
-            WorkoutSet.self
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
+    
+    init() {
+        // Clear any corrupt data first
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let storePath = documentsPath.appendingPathComponent("default.store")
         
+        // Try removing the old store if it exists
+        try? FileManager.default.removeItem(at: storePath)
+        
+        print("Cleared old data store at: \(storePath)")
+    }
+    
+    var sharedModelContainer: ModelContainer = {
+        // Start with just the core models
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(for:
+                Exercise.self,
+                WorkoutSession.self,
+                SessionExercise.self,
+                WorkoutSet.self
+            )
+            
+            print("✅ Basic ModelContainer created successfully")
+            
+            // Try adding template models
+            do {
+                let fullContainer = try ModelContainer(for:
+                    Exercise.self,
+                    WorkoutSession.self,
+                    SessionExercise.self,
+                    WorkoutSet.self,
+                    WorkoutTemplate.self,
+                    WorkoutExercise.self,
+                    TemplateSet.self,
+                    Program.self,
+                    ProgramWeek.self,
+                    ProgramWorkout.self
+                )
+                print("✅ Full ModelContainer created successfully")
+                return fullContainer
+            } catch {
+                print("⚠️ Could not create full container, using basic: \(error)")
+                return container
+            }
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            print("❌ ModelContainer Error Details:")
+            print("Error: \(error)")
+            print("LocalizedDescription: \(error.localizedDescription)")
+            
+            // Last resort - in-memory only
+            do {
+                let memoryContainer = try ModelContainer(
+                    for: Exercise.self, WorkoutSession.self,
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                )
+                print("⚠️ Using in-memory container as fallback")
+                return memoryContainer
+            } catch {
+                fatalError("Could not even create in-memory container: \(error)")
+            }
         }
     }()
     

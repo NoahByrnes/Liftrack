@@ -20,6 +20,10 @@ struct CreateTemplateView: View {
         var restSeconds: Int {
             customRestSeconds ?? exercise.defaultRestSeconds
         }
+        
+        init(exercise: Exercise) {
+            self.exercise = exercise
+        }
     }
     
     struct TempSet: Identifiable {
@@ -232,7 +236,7 @@ struct ExerciseRow: View {
             }
             
             // Rest Timer - Match ActiveWorkoutView style
-            HStack {
+            HStack(spacing: 4) {
                 Image(systemName: "timer")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
@@ -240,8 +244,6 @@ struct ExerciseRow: View {
                 Text("Rest: \(formatRestTime(exercise.restSeconds))")
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
-                
-                Spacer()
             }
             
             // Sets
@@ -521,7 +523,7 @@ struct SetRow: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(6)
                     .keyboardType(.numberPad)
-                    .onChange(of: reps) { newValue in
+                    .onChange(of: reps) { _, newValue in
                         onRepsChange(newValue)
                     }
             }
@@ -538,7 +540,7 @@ struct SetRow: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(6)
                     .keyboardType(.decimalPad)
-                    .onChange(of: weight) { newValue in
+                    .onChange(of: weight) { _, newValue in
                         onWeightChange(newValue)
                     }
                 

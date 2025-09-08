@@ -1,0 +1,481 @@
+import SwiftUI
+import SwiftData
+
+struct MagicCreateProgramView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \WorkoutTemplate.name) private var availableTemplates: [WorkoutTemplate]
+    @StateObject private var settings = SettingsManager.shared
+    
+    // Minimal required info
+    @State private var programName = ""
+    @State private var selectedTemplates: [WorkoutTemplate] = []
+    @State private var duration = 8 // weeks
+    
+    // Advanced mode
+    @State private var showAdvancedOptions = false
+    
+    // The magic happens automatically
+    private var userProfile: UserProfile {
+        let experienceRaw = UserDefaults.standard.string(forKey: "userExperience") ?? "intermediate"
+        let goalRaw = UserDefaults.standard.string(forKey: "userGoal") ?? "balanced"
+        
+        return UserProfile(
+            experience: ExperienceLevel(rawValue: experienceRaw) ?? .intermediate,
+            primaryGoal: UserProfile.Goal(rawValue: goalRaw) ?? .balanced
+        )
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Simple name input
+                    SimpleNameSection(programName: $programName)
+                    
+                    // Template selection with smart suggestions
+                    SmartTemplateSection(
+                        selectedTemplates: $selectedTemplates,
+                        availableTemplates: availableTemplates,
+                        userGoal: userProfile.primaryGoal
+                    )
+                    
+                    // Duration slider
+                    DurationSection(duration: $duration)
+                    
+                    // Smart summary
+                    if !selectedTemplates.isEmpty {
+                        ProgramSummaryCard(
+                            templates: selectedTemplates,
+                            duration: duration,
+                            profile: userProfile
+                        )
+                    }
+                    
+                    // Advanced toggle (hidden by default)
+                    if !selectedTemplates.isEmpty {
+                        AdvancedOptionsToggle(isExpanded: $showAdvancedOptions)
+                    }
+                }
+                .padding()
+                .padding(.bottom, 100)
+            }
+            .navigationTitle("New Program")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        createMagicalProgram()
+                    }
+                    .disabled(programName.isEmpty || selectedTemplates.isEmpty)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+    
+    private func createMagicalProgram() {
+        // Get workout history for intelligent weight calculation
+        let descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate { $0.completedAt != nil },
+            sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+        )
+        let workoutHistory = (try? modelContext.fetch(descriptor)) ?? []
+        
+        // Use the INTELLIGENT BUILDER that actually uses our algorithms!
+        let program = ProgramBuilder.buildIntelligentProgram(
+            name: programName,
+            templates: selectedTemplates,
+            duration: duration,
+            userProfile: userProfile,
+            workoutHistory: workoutHistory,
+            modelContext: modelContext
+        )
+        
+        // The builder has already:
+        // 1. Analyzed your workout history
+        // 2. Calculated starting weights using 1RM formulas
+        // 3. Applied periodization models
+        // 4. Set up intelligent progression
+        // 5. Scheduled deloads based on experience
+        
+        modelContext.insert(program)
+        try? modelContext.save()
+        
+        dismiss()
+    }
+    
+    private func selectOptimalPeriodization() -> PeriodizationModel {
+        switch (userProfile.experience, userProfile.primaryGoal) {
+        case (.beginner, _):
+            return .linear // Simple for beginners
+        case (.advanced, .strength):
+            return .block // Advanced strength work
+        case (_, .muscle):
+            return .undulating // Good for hypertrophy
+        default:
+            return .linear // Safe default
+        }
+    }
+}
+
+// MARK: - Simple Components
+
+struct SimpleNameSection: View {
+    @Binding var programName: String
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Program Name")
+                .font(.headline)
+            
+            TextField("My Training Program", text: $programName)
+                .font(.title2)
+                .focused($isFocused)
+                .padding()
+                .background(Color(.secondarySystemGroupedBackground))
+                .cornerRadius(12)
+        }
+    }
+}
+
+struct SmartTemplateSection: View {
+    @Binding var selectedTemplates: [WorkoutTemplate]
+    let availableTemplates: [WorkoutTemplate]
+    let userGoal: UserProfile.Goal
+    
+    private var suggestedTemplates: [WorkoutTemplate] {
+        // Smart suggestions based on goal
+        availableTemplates.filter { template in
+            switch userGoal {
+            case .strength:
+                return template.name.localizedCaseInsensitiveContains("strength") ||
+                       template.name.localizedCaseInsensitiveContains("power")
+            case .muscle:
+                return template.name.localizedCaseInsensitiveContains("hypertrophy") ||
+                       template.name.localizedCaseInsensitiveContains("pump")
+            case .balanced:
+                return true // All templates work
+            case .endurance:
+                return template.name.localizedCaseInsensitiveContains("circuit") ||
+                       template.name.localizedCaseInsensitiveContains("endurance")
+            }
+        }.prefix(3).map { $0 }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Workouts")
+                    .font(.headline)
+                
+                Spacer()
+                
+                if !selectedTemplates.isEmpty {
+                    Text("\(selectedTemplates.count) selected")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            // Smart suggestions
+            if selectedTemplates.isEmpty && !suggestedTemplates.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Suggested for you", systemImage: "sparkles")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    ForEach(suggestedTemplates) { template in
+                        SimpleTemplateCard(
+                            template: template,
+                            isSelected: selectedTemplates.contains(template),
+                            action: {
+                                toggleTemplate(template)
+                            }
+                        )
+                    }
+                }
+            }
+            
+            // All templates
+            if !availableTemplates.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    if !selectedTemplates.isEmpty || !suggestedTemplates.isEmpty {
+                        Text("All Templates")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                    }
+                    
+                    ForEach(availableTemplates) { template in
+                        if !suggestedTemplates.contains(template) {
+                            SimpleTemplateCard(
+                                template: template,
+                                isSelected: selectedTemplates.contains(template),
+                                action: {
+                                    toggleTemplate(template)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            if availableTemplates.isEmpty {
+                EmptyTemplatesCard()
+            }
+        }
+    }
+    
+    private func toggleTemplate(_ template: WorkoutTemplate) {
+        withAnimation(.spring(response: 0.3)) {
+            if selectedTemplates.contains(template) {
+                selectedTemplates.removeAll { $0.id == template.id }
+            } else {
+                selectedTemplates.append(template)
+            }
+        }
+    }
+}
+
+struct DurationSection: View {
+    @Binding var duration: Int
+    
+    private var durationDescription: String {
+        switch duration {
+        case 1...4: return "Short program - Quick results"
+        case 5...8: return "Standard program - Optimal progression"
+        case 9...12: return "Extended program - Major transformation"
+        default: return "Long-term program - Lifestyle change"
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Duration")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Text("\(duration) weeks")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.tint)
+            }
+            
+            Slider(value: Binding(
+                get: { Double(duration) },
+                set: { duration = Int($0) }
+            ), in: 4...16, step: 1)
+            .tint(.accentColor)
+            
+            Text(durationDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct ProgramSummaryCard: View {
+    let templates: [WorkoutTemplate]
+    let duration: Int
+    let profile: UserProfile
+    
+    private var weeklyVolume: String {
+        "\(templates.count) workouts per week"
+    }
+    
+    private var totalWorkouts: Int {
+        templates.count * duration
+    }
+    
+    private var progressionInfo: String {
+        switch profile.experience {
+        case .beginner:
+            return "Fast progression (5-10% weekly)"
+        case .intermediate:
+            return "Steady progression (2.5-5% weekly)"
+        case .advanced:
+            return "Careful progression (1-2.5% monthly)"
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Program Overview", systemImage: "chart.line.uptrend.xyaxis")
+                .font(.headline)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Schedule")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(weeklyVolume)
+                        .fontWeight(.medium)
+                }
+                
+                HStack {
+                    Text("Total Workouts")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(totalWorkouts)")
+                        .fontWeight(.medium)
+                }
+                
+                HStack {
+                    Text("Progression")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(progressionInfo)
+                        .fontWeight(.medium)
+                }
+                
+                HStack {
+                    Text("Intelligence")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                        Text("Auto-adjusting")
+                            .fontWeight(.medium)
+                    }
+                }
+            }
+            .font(.subheadline)
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct SimpleTemplateCard: View {
+    let template: WorkoutTemplate
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(template.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(isSelected ? .white : .primary)
+                    
+                    Text("\(template.exercises.count) exercises")
+                        .font(.caption)
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? .white : .secondary)
+            }
+            .padding()
+            .background(isSelected ? Color.accentColor : Color(.tertiarySystemGroupedBackground))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct EmptyTemplatesCard: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            
+            Text("No templates yet")
+                .font(.headline)
+            
+            Text("Create a workout template first")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.tertiarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+}
+
+struct AdvancedOptionsToggle: View {
+    @Binding var isExpanded: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: { withAnimation { isExpanded.toggle() } }) {
+                HStack {
+                    Label("Advanced Options", systemImage: "gearshape")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    Spacer()
+                    
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+            }
+            
+            if isExpanded {
+                Divider()
+                
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Advanced settings will be available here")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+            }
+        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Extensions
+
+extension UserProfile.Goal {
+    func toTrainingGoal() -> TrainingGoal {
+        switch self {
+        case .strength: return .strength
+        case .muscle: return .hypertrophy
+        case .endurance: return .endurance
+        case .balanced: return .hypertrophy // Default to muscle building
+        }
+    }
+}
+
+extension ExperienceLevel {
+    func toTrainingExperience() -> TrainingExperience {
+        switch self {
+        case .beginner: return .beginner
+        case .intermediate: return .intermediate
+        case .advanced: return .advanced
+        }
+    }
+    
+    func optimalDeloadWeek() -> Int {
+        switch self {
+        case .beginner: return 8  // Every 8 weeks
+        case .intermediate: return 6  // Every 6 weeks
+        case .advanced: return 4  // Every 4 weeks
+        }
+    }
+}
+
+#Preview {
+    MagicCreateProgramView()
+        .modelContainer(for: [Program.self, WorkoutTemplate.self], inMemory: true)
+}

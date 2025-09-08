@@ -1,0 +1,17 @@
+#if canImport(UIKit)
+import UIKit
+
+extension UIResponder {
+    private static weak var _currentFirstResponder: UIResponder?
+    
+    static func currentFirst() -> UIResponder? {
+        _currentFirstResponder = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.findFirstResponder(_:)), to: nil, from: nil, for: nil)
+        return _currentFirstResponder
+    }
+    
+    @objc private func findFirstResponder(_ sender: Any) {
+        UIResponder._currentFirstResponder = self
+    }
+}
+#endif

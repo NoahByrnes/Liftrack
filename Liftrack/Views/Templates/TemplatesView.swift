@@ -4,59 +4,167 @@ import SwiftData
 struct TemplatesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \WorkoutTemplate.name) private var templates: [WorkoutTemplate]
+    @Query(sort: \Program.createdAt, order: .reverse) private var programs: [Program]
     @State private var showingCreateTemplate = false
+    @State private var showingCreateProgram = false
+    @State private var selectedSegment = 0 // 0 for templates, 1 for programs
+    @State private var appearAnimation = false
+    @State private var buttonScale = 0.8
     @StateObject private var settings = SettingsManager.shared
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header
+                    // Animated Header
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Templates")
+                            Text("Training")
                                 .font(.system(size: 34, weight: .bold, design: .rounded))
-                            Text("\(templates.count) workout plans")
+                                .opacity(appearAnimation ? 1 : 0)
+                                .offset(y: appearAnimation ? 0 : 20)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.8).delay(0.05), value: appearAnimation)
+                            
+                            Text(selectedSegment == 0 ? 
+                                "\(templates.count) workout templates" : 
+                                "\(programs.count) training programs")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                                .opacity(appearAnimation ? 1 : 0)
+                                .animation(.easeOut(duration: 0.3).delay(0.1), value: appearAnimation)
                         }
                         Spacer()
                         
                         Button(action: { 
-                            showingCreateTemplate = true
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                buttonScale = 0.9
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                buttonScale = 1.0
+                            }
+                            
+                            if selectedSegment == 0 {
+                                showingCreateTemplate = true
+                            } else {
+                                showingCreateProgram = true
+                            }
                             settings.impactFeedback(style: .medium)
                         }) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 32))
                                 .foregroundColor(settings.accentColor.color)
-                                .symbolEffect(.pulse)
+                                .scaleEffect(buttonScale)
+                                .opacity(appearAnimation ? 1 : 0)
+                                .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.2), value: appearAnimation)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: buttonScale)
                         }
                     }
                     .padding(.horizontal)
                     .padding(.top, 10)
                     
-                    // Templates Grid
-                    if templates.isEmpty {
-                        EmptyStateView()
-                            .padding(.top, 100)
+                    // Animated Segmented Control
+                    Picker("View", selection: $selectedSegment.animation(.spring(response: 0.3, dampingFraction: 0.8))) {
+                        Text("Templates").tag(0)
+                        Text("Programs").tag(1)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    .opacity(appearAnimation ? 1 : 0)
+                    .scaleEffect(appearAnimation ? 1 : 0.95)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.15), value: appearAnimation)
+                    
+                    // Content based on selection
+                    if selectedSegment == 0 {
+                        // Templates View
+                        if templates.isEmpty {
+                            EmptyStateView()
+                                .padding(.top, 100)
+                        } else {
+                            LazyVStack(spacing: 16) {
+                                ForEach(Array(templates.enumerated()), id: \.element.id) { index, template in
+                                    TemplateCard(template: template, modelContext: modelContext)
+                                        .transition(.asymmetric(
+                                            insertion: .scale.combined(with: .opacity),
+                                            removal: .scale.combined(with: .opacity)
+                                        ))
+                                        .opacity(appearAnimation ? 1 : 0)
+                                        .offset(y: appearAnimation ? 0 : 30)
+                                        .animation(
+                                            .spring(response: 0.4, dampingFraction: 0.8)
+                                            .delay(Double(index) * 0.05 + 0.2),
+                                            value: appearAnimation
+                                        )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
                     } else {
-                        LazyVStack(spacing: 16) {
-                            ForEach(templates) { template in
-                                TemplateCard(template: template, modelContext: modelContext)
-                                    .transition(.asymmetric(
-                                        insertion: .scale.combined(with: .opacity),
-                                        removal: .scale.combined(with: .opacity)
-                                    ))
+                        // Programs View
+                        if programs.isEmpty {
+                            EmptyProgramsStateView(onCreateTap: { showingCreateProgram = true })
+                                .padding(.top, 100)
+                        } else {
+                            LazyVStack(spacing: 20) {
+                                // Active Program
+                                if let activeProgram = programs.first(where: { $0.isActive }) {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("ACTIVE PROGRAM")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal)
+                                            .opacity(appearAnimation ? 1 : 0)
+                                            .animation(.easeOut(duration: 0.3).delay(0.2), value: appearAnimation)
+                                        
+                                        NavigationLink(destination: ProgramDetailView(program: activeProgram)) {
+                                            ActiveProgramCard(program: activeProgram)
+                                        }
+                                        .opacity(appearAnimation ? 1 : 0)
+                                        .offset(y: appearAnimation ? 0 : 30)
+                                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.25), value: appearAnimation)
+                                    }
+                                }
+                                
+                                // Other Programs
+                                let inactivePrograms = programs.filter { !$0.isActive }
+                                if !inactivePrograms.isEmpty {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text(programs.contains { $0.isActive } ? "OTHER PROGRAMS" : "ALL PROGRAMS")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal)
+                                        
+                                        ForEach(Array(inactivePrograms.enumerated()), id: \.element.id) { index, program in
+                                            NavigationLink(destination: ProgramDetailView(program: program)) {
+                                                ProgramCard(program: program)
+                                            }
+                                            .opacity(appearAnimation ? 1 : 0)
+                                            .offset(y: appearAnimation ? 0 : 30)
+                                            .animation(
+                                                .spring(response: 0.4, dampingFraction: 0.8)
+                                                .delay(Double(index) * 0.05 + 0.3),
+                                                value: appearAnimation
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
-                        .padding(.horizontal)
                     }
                 }
                 .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
             .background(Color(.systemGroupedBackground))
+            .onAppear {
+                withAnimation {
+                    appearAnimation = true
+                    buttonScale = 1.0
+                }
+            }
             .sheet(isPresented: $showingCreateTemplate) {
                 CreateTemplateView()
+            }
+            .sheet(isPresented: $showingCreateProgram) {
+                ProgramCreationRouter()
             }
         }
     }
@@ -181,7 +289,39 @@ struct EmptyStateView: View {
     }
 }
 
+struct EmptyProgramsStateView: View {
+    let onCreateTap: () -> Void
+    @StateObject private var settings = SettingsManager.shared
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "calendar.badge.plus")
+                .font(.system(size: 60))
+                .foregroundColor(settings.accentColor.color.opacity(0.5))
+            
+            Text("No Programs Yet")
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+            
+            Text("Create a structured training program\nto track your progress over time")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button(action: onCreateTap) {
+                Text("Create Your First Program")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(settings.accentColor.color)
+                    .cornerRadius(10)
+            }
+            .padding(.top, 10)
+        }
+    }
+}
+
 #Preview {
     TemplatesView()
-        .modelContainer(for: WorkoutTemplate.self, inMemory: true)
+        .modelContainer(for: [WorkoutTemplate.self, Program.self], inMemory: true)
 }

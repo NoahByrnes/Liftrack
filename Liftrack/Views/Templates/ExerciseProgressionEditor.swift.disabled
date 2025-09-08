@@ -1,0 +1,211 @@
+import SwiftUI
+import SwiftData
+
+struct ExerciseProgressionEditor: View {
+    @Bindable var exercise: WorkoutExercise
+    @State private var showingAdvanced = false
+    @StateObject private var settings = SettingsManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Progression Toggle
+            Toggle(isOn: $exercise.progressionEnabled) {
+                Label("Enable Progression", systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 15, weight: .medium))
+            }
+            .tint(settings.accentColor.color)
+            
+            if exercise.progressionEnabled {
+                VStack(spacing: 16) {
+                    // Weight Progression
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("WEIGHT PROGRESSION")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Text("Increase")
+                                .font(.system(size: 14))
+                            
+                            TextField("5", value: $exercise.weeklyWeightIncrease, format: .number.precision(.fractionLength(1)))
+                                .font(.system(size: 14, weight: .medium))
+                                .multilineTextAlignment(.center)
+                                .frame(width: 50)
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(6)
+                                .keyboardType(.decimalPad)
+                            
+                            Text("lbs every")
+                                .font(.system(size: 14))
+                            
+                            Picker("", selection: $exercise.progressionFrequency) {
+                                Text("week").tag(1)
+                                Text("2 weeks").tag(2)
+                                Text("3 weeks").tag(3)
+                                Text("4 weeks").tag(4)
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                            .accentColor(settings.accentColor.color)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    // Rep Progression
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(isOn: $exercise.repProgressionEnabled) {
+                            Text("REP PROGRESSION")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .tint(settings.accentColor.color)
+                        
+                        if exercise.repProgressionEnabled {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Target rep range:")
+                                        .font(.system(size: 14))
+                                    
+                                    TextField("8-12", text: $exercise.targetRepRange)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .multilineTextAlignment(.center)
+                                        .frame(width: 60)
+                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 8)
+                                        .background(Color(.systemGray6))
+                                        .cornerRadius(6)
+                                        .keyboardType(.numbersAndPunctuation)
+                                }
+                                
+                                Text("When you hit the upper range consistently, weight increases")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    
+                    // Advanced Settings
+                    DisclosureGroup("Advanced Settings", isExpanded: $showingAdvanced) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Auto-deload
+                            Toggle(isOn: $exercise.autoDeloadEnabled) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Auto-Deload")
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text("Reduce weight if performance drops")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .tint(settings.accentColor.color)
+                            
+                            // Minimum rep threshold
+                            HStack {
+                                Text("Failure threshold:")
+                                    .font(.system(size: 14))
+                                
+                                Stepper(value: $exercise.minRepThreshold, in: 1...20) {
+                                    Text("\(exercise.minRepThreshold) reps")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(settings.accentColor.color)
+                                }
+                            }
+                            
+                            Text("If you can't hit this minimum, weight won't increase")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 8)
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .accentColor(settings.accentColor.color)
+                }
+                .padding(12)
+                .background(Color(.systemGray6).opacity(0.5))
+                .cornerRadius(10)
+            }
+        }
+    }
+}
+
+// Simplified version for template creation
+struct ExerciseProgressionQuickSettings: View {
+    let exerciseName: String
+    @Binding var progressionEnabled: Bool
+    @Binding var weeklyIncrease: Double
+    @Binding var frequency: Int
+    @StateObject private var settings = SettingsManager.shared
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 12))
+                    .foregroundColor(settings.accentColor.color)
+                
+                Text("Progression")
+                    .font(.system(size: 13, weight: .medium))
+                
+                Spacer()
+                
+                Toggle("", isOn: $progressionEnabled)
+                    .labelsHidden()
+                    .scaleEffect(0.8)
+            }
+            
+            if progressionEnabled {
+                HStack(spacing: 8) {
+                    Text("+")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("5", value: $weeklyIncrease, format: .number.precision(.fractionLength(1)))
+                        .font(.system(size: 12, weight: .medium))
+                        .multilineTextAlignment(.center)
+                        .frame(width: 35)
+                        .padding(.vertical, 2)
+                        .padding(.horizontal, 4)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(4)
+                        .keyboardType(.decimalPad)
+                    
+                    Text("lbs")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    
+                    Picker("", selection: $frequency) {
+                        Text("weekly").tag(1)
+                        Text("bi-weekly").tag(2)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: 140)
+                    .scaleEffect(0.85)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .cornerRadius(8)
+    }
+}
+
+#Preview {
+    VStack {
+        ExerciseProgressionEditor(exercise: WorkoutExercise(
+            exercise: Exercise(name: "Bench Press"),
+            orderIndex: 0
+        ))
+        
+        Divider()
+        
+        ExerciseProgressionQuickSettings(
+            exerciseName: "Bench Press",
+            progressionEnabled: .constant(true),
+            weeklyIncrease: .constant(5.0),
+            frequency: .constant(1)
+        )
+    }
+    .padding()
+}
