@@ -14,8 +14,11 @@ struct TemplatesView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
+            ZStack {
+                GradientBackground()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
                     // Animated Header with visual hierarchy
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -165,6 +168,7 @@ struct TemplatesView: View {
             }
             .sheet(isPresented: $showingCreateProgram) {
                 ProgramCreationRouter()
+            }
             }
         }
     }

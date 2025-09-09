@@ -28,15 +28,15 @@ struct ActiveWorkoutView: View {
     
     var body: some View {
         ZStack {
+            GradientBackground()
+            
             VStack(spacing: 0) {
-                // Timer Header
-                HStack {
-                    Image(systemName: "chevron.down.circle.fill")
-                        .foregroundColor(settings.accentColor.color)
-                        .font(.system(size: 20))
-                        .contentShape(Circle())
-                        .onTapGesture {
-                            // Auto-cancel if workout is empty
+                // Clean, minimal header
+                VStack(spacing: 16) {
+                    // Top row with minimize and menu
+                    HStack {
+                        // Minimize button
+                        Button(action: {
                             if session.exercises.isEmpty {
                                 cancelWorkout()
                             } else {
@@ -45,117 +45,163 @@ struct ActiveWorkoutView: View {
                                     dismiss()
                                 }
                             }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    )
+                                
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 18, weight: .semibold))
+                            }
                         }
+                        
+                        Spacer()
+                        
+                        // Edit/Done toggle
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isEditMode.toggle()
+                            }
+                            settings.impactFeedback(style: .light)
+                        }) {
+                            Text(isEditMode ? "Done" : "Edit")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(20)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                )
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 50)
                     
-                    Spacer()
-                    
-                    HStack(spacing: 8) {
-                        Image(systemName: "timer")
+                    // Central timer display
+                    VStack(spacing: 8) {
                         Text(formatTime(timerManager.elapsedTime))
-                            .font(.system(.title3, design: .monospaced))
-                    }
-                    
-                    Spacer()
-                    
-                    // Quick Rest Timer
-                    Menu {
-                        ForEach([30, 60, 90, 120], id: \.self) { seconds in
-                            Button(action: {
-                                timerManager.startRestTimer(seconds: seconds)
-                            }) {
-                                Label(formatPresetTime(seconds), systemImage: "timer")
-                            }
+                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                        
+                        if !session.templateName.isEmpty {
+                            Text(session.templateName)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
                         }
-                    } label: {
-                        Image(systemName: "timer.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(settings.accentColor.color)
                     }
                     
-                    // Edit button
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isEditMode.toggle()
-                        }
-                        settings.impactFeedback(style: .light)
-                    }) {
-                        Text(isEditMode ? "Done" : "Edit")
-                            .foregroundColor(settings.accentColor.color)
-                            .fontWeight(.medium)
-                    }
-                    
-                    // Finish button
-                    Button(action: {
-                        if session.exercises.isEmpty {
-                            showingEmptyWorkoutAlert = true
-                        } else {
-                            showingFinishConfirmation = true
-                        }
-                    }) {
-                        Text("Finish")
-                            .foregroundColor(.green)
-                            .fontWeight(.semibold)
-                    }
-                }
-                .padding()
-                #if os(iOS)
-                .background(Color(UIColor.systemGray6))
-                #else
-                .background(Color.gray.opacity(0.1))
-                #endif
-                .onTapGesture {
-                    // Dismiss keyboard when tapping header
-                    #if os(iOS)
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    #endif
-                }
-                
-                List {
-                    // Show template carousel only when no exercises are present
-                    if session.exercises.isEmpty && !recentTemplates.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("QUICK START FROM TEMPLATE")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 16)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(recentTemplates) { template in
-                                        TemplateQuickCard(template: template) {
-                                            loadTemplate(template)
-                                        }
-                                    }
+                    // Action buttons row
+                    HStack(spacing: 12) {
+                        // Rest timer button
+                        Menu {
+                            ForEach([30, 60, 90, 120], id: \.self) { seconds in
+                                Button(action: {
+                                    timerManager.startRestTimer(seconds: seconds)
+                                }) {
+                                    Label(formatPresetTime(seconds), systemImage: "timer")
                                 }
-                                .padding(.horizontal, 16)
                             }
+                        } label: {
+                            HStack {
+                                Image(systemName: "timer")
+                                Text("Rest")
+                            }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
                         }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                        
+                        // Finish workout button
+                        Button(action: {
+                            if session.exercises.isEmpty {
+                                showingEmptyWorkoutAlert = true
+                            } else {
+                                showingFinishConfirmation = true
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Finish")
+                            }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.green.opacity(0.3))
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.green.opacity(0.5), lineWidth: 1)
+                            )
+                        }
                     }
-                    
-                    ForEach(Array(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }).enumerated()), id: \.element.id) { index, exercise in
-                        VStack(spacing: 0) {
-                            // Show superset connector for exercises in same group
-                            if index > 0 {
-                                let prevExercise = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })[index - 1]
-                                if let groupId = exercise.supersetGroupId,
-                                   prevExercise.supersetGroupId == groupId {
-                                    HStack {
-                                        Spacer()
-                                        VStack(spacing: 2) {
-                                            ForEach(0..<3, id: \.self) { _ in
-                                                Circle()
-                                                    .fill(settings.accentColor.color.opacity(0.5))
-                                                    .frame(width: 3, height: 3)
+                    .padding(.horizontal, 20)
+                }
+                .padding(.bottom, 20)
+                
+                // Exercise list with proper styling
+                ScrollView {
+                    VStack(spacing: 12) {
+                        // Show template carousel only when no exercises are present
+                        if session.exercises.isEmpty && !recentTemplates.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("QUICK START FROM TEMPLATE")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .padding(.horizontal, 20)
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(recentTemplates) { template in
+                                            TemplateQuickCard(template: template) {
+                                                loadTemplate(template)
                                             }
                                         }
-                                        Spacer()
                                     }
-                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 20)
                                 }
                             }
+                            .padding(.vertical, 12)
+                        }
+                    
+                        ForEach(Array(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }).enumerated()), id: \.element.id) { index, exercise in
+                            VStack(spacing: 0) {
+                                // Show superset connector for exercises in same group
+                                if index > 0 {
+                                    let prevExercise = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })[index - 1]
+                                    if let groupId = exercise.supersetGroupId,
+                                       prevExercise.supersetGroupId == groupId {
+                                        HStack {
+                                            Spacer()
+                                            VStack(spacing: 2) {
+                                                ForEach(0..<3, id: \.self) { _ in
+                                                    Circle()
+                                                        .fill(Color.white.opacity(0.5))
+                                                        .frame(width: 3, height: 3)
+                                                }
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
                             
                             ExerciseCard(
                                 exercise: exercise,
@@ -208,43 +254,43 @@ struct ActiveWorkoutView: View {
                                         try? modelContext.save()
                                     }
                                 }
+                                )
+                                .padding(.horizontal, 20)
+                            }
+                            .opacity(appearAnimation ? 1 : 0)
+                            .offset(y: appearAnimation ? 0 : 20)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.08), value: appearAnimation)
+                        }
+                        
+                        // Add Exercise Button - Clean floating style
+                        Button(action: {
+                            showingAddExercise = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                Text("Add Exercise")
+                                    .font(.system(size: 17, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
                         }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-                        .opacity(appearAnimation ? 1 : 0)
-                        .offset(y: appearAnimation ? 0 : 20)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.08), value: appearAnimation)
-                    }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
                         
-                    // Add Exercise Button - Match CreateTemplateView style
-                    Button(action: {
-                        showingAddExercise = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                            Text("Add Exercise")
-                                .font(.system(size: 17, weight: .medium))
-                        }
-                        .foregroundColor(settings.accentColor.color)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(settings.accentColor.color.opacity(0.1))
-                        .cornerRadius(12)
+                        // Add padding at bottom to account for tab bar and rest timer
+                        Color.clear
+                            .frame(height: timerManager.showRestBar ? 180 : 100)
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    
-                    // Add padding at bottom to account for tab bar and rest timer
-                    Color.clear
-                        .frame(height: timerManager.showRestBar ? 180 : DesignConstants.Spacing.tabBarClearance)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    .padding(.top, 8)
                 }
-                .listStyle(.plain)
                 .scrollDismissesKeyboard(.interactively)
             }
             
@@ -298,14 +344,16 @@ struct ActiveWorkoutView: View {
                         .padding()
                         .background(
                             timerManager.restTimeRemaining <= 3 ? 
-                            Color.red.opacity(0.15) : 
-                            Color(.secondarySystemGroupedBackground)
+                            Color.red.opacity(0.2) : 
+                            Color.clear
                         )
+                        .background(.ultraThinMaterial)
                         .animation(.easeInOut(duration: 0.3), value: timerManager.restTimeRemaining)
-                        .cornerRadius(12)
-                        .shadow(color: timerManager.restTimeRemaining <= 3 ? Color.red.opacity(0.3) : Color.black.opacity(0.1), 
-                               radius: timerManager.restTimeRemaining <= 3 ? 8 : 5, 
-                               x: 0, y: -2)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 100) // Position above tab bar
@@ -599,7 +647,7 @@ struct ExerciseCard: View {
             HStack {
                 Text(exercise.exerciseName)
                     .font(.system(size: 19, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Spacer()
                 
@@ -756,10 +804,12 @@ struct ExerciseCard: View {
                 .padding(.vertical, 12)
             }
         }
-        .background(Color(.systemBackground))
+        .background(.ultraThinMaterial)
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-        .padding(.horizontal, 16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
         .sheet(isPresented: $showingNotesDialog) {
             NavigationStack {
                 VStack(spacing: 20) {

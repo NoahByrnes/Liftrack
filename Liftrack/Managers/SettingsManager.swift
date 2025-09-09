@@ -55,7 +55,7 @@ class SettingsManager: ObservableObject {
         }
     }
     
-    @AppStorage("accentColor") var accentColorString: String = AccentColor.purple.rawValue {
+    @AppStorage("accentColor") var accentColorString: String = AccentColor.red.rawValue {
         didSet {
             objectWillChange.send()
         }
@@ -79,7 +79,7 @@ class SettingsManager: ObservableObject {
     }
     
     var accentColor: AccentColor {
-        get { AccentColor(rawValue: accentColorString) ?? .purple }
+        get { AccentColor(rawValue: accentColorString) ?? .red }
         set { accentColorString = newValue.rawValue }
     }
     

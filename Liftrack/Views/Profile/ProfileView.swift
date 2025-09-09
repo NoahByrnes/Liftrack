@@ -29,8 +29,11 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
+            ZStack {
+                GradientBackground()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
                     // Profile Picture and Name Section
                     VStack(spacing: 16) {
                         // Profile Picture
@@ -45,8 +48,12 @@ struct ProfileView: View {
                                         .clipShape(Circle())
                                 } else {
                                     Circle()
-                                        .fill(Color(.secondarySystemGroupedBackground))
+                                        .fill(.ultraThinMaterial)
                                         .frame(width: 100, height: 100)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                        )
                                         .overlay(
                                             Image(systemName: "person.crop.circle.fill")
                                                 .font(.system(size: 80))
@@ -227,8 +234,8 @@ struct ProfileView: View {
                 }
             }
             #endif
+            }
         }
-        .background(Color(.systemGroupedBackground))
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -251,25 +258,23 @@ struct StatsCard: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundColor(color)
+                .foregroundColor(.white)
             
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
             
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+        .overlay(
             RoundedRectangle(cornerRadius: 16)
-                #if os(iOS)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                #else
-                .fill(Color.gray.opacity(0.2))
-                #endif
-                .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
     }
 }
@@ -284,34 +289,31 @@ struct SettingsRow: View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundColor(color)
+                .foregroundColor(.white)
                 .frame(width: 40)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 Text(subtitle)
                     .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             
             Spacer()
             
             Image(systemName: "chevron.right")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.5))
         }
         .padding(16)
-        .background(
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+        .overlay(
             RoundedRectangle(cornerRadius: 16)
-                #if os(iOS)
-                .fill(Color(UIColor.secondarySystemGroupedBackground))
-                #else
-                .fill(Color.gray.opacity(0.2))
-                #endif
-                .shadow(color: Color.primary.opacity(0.05), radius: 8, x: 0, y: 2)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
     }
 }

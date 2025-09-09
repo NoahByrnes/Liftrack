@@ -21,7 +21,10 @@ struct HistoryView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ZStack {
+                GradientBackground()
+                
+                ScrollView {
                 // Pull to refresh indicator
                 if isRefreshing {
                     HStack {
@@ -120,9 +123,12 @@ struct HistoryView: View {
                     WorkoutDetailView(session: session)
                 }
             }
+            }
         }
     }
-    
+}
+
+extension HistoryView {
     private func refreshData() async {
         // Add haptic feedback for pull to refresh
         await MainActor.run {

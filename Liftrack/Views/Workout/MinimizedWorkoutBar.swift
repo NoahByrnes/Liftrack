@@ -67,8 +67,11 @@ struct MinimizedWorkoutBar: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(UIColor.systemBackground))
-                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: -5)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
         )
         .padding(.horizontal)
         .padding(.bottom, 8)
