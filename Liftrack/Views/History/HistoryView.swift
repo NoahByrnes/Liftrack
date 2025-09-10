@@ -21,10 +21,7 @@ struct HistoryView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                GradientBackground()
-                
-                ScrollView {
+            ScrollView {
                 // Pull to refresh indicator
                 if isRefreshing {
                     HStack {
@@ -106,7 +103,7 @@ struct HistoryView: View {
                 }
                 .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.clear)
             .refreshable {
                 await refreshData()
             }
@@ -122,7 +119,6 @@ struct HistoryView: View {
                 NavigationStack {
                     WorkoutDetailView(session: session)
                 }
-            }
             }
         }
     }
@@ -896,7 +892,7 @@ struct WorkoutCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
+                .fill(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
         )
         .padding(.horizontal)
@@ -969,7 +965,7 @@ struct WorkoutDetailView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
+                        .fill(.ultraThinMaterial)
                         .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
                 )
                 
@@ -1014,7 +1010,7 @@ struct WorkoutDetailView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.clear)
         .navigationTitle(session.templateName)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {

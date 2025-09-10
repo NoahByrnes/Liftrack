@@ -1,22 +1,19 @@
-//
-//  ContentView.swift
-//  Liftrack
-//
-//  Created by Noah Grant-Byrnes on 2025-08-14.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var settings = SettingsManager.shared
-    @Query(filter: #Predicate<WorkoutSession> { $0.completedAt == nil })
-    private var activeSessions: [WorkoutSession]
     @Query(
-        filter: #Predicate<WorkoutSession> { $0.completedAt != nil },
-        sort: \WorkoutSession.completedAt,
+        filter: #Predicate<WorkoutSession> { session in
+            session.completedAt == nil
+        }
+    ) private var activeSessions: [WorkoutSession]
+    @Query(
+        filter: #Predicate<WorkoutSession> { session in
+            session.completedAt != nil
+        },
+        sort: \WorkoutSession.completedAt, 
         order: .reverse
     ) private var recentSessions: [WorkoutSession]
     @Query(sort: \WorkoutTemplate.lastUsedAt, order: .reverse)
@@ -27,124 +24,26 @@ struct ContentView: View {
     @State private var hasInitialized = false
     @State private var shouldShowLoadingScreen = true
     @State private var showingTemplatePicker = false
+    @State private var showingProfile = false
+    @State private var profileButtonScale = 1.0
+    @State private var workoutButtonScale = 1.0
+    @State private var templateButtonScale = 1.0
+    @State private var repeatButtonScale = 1.0
+    @State private var buttonsAppeared = false
     
     var lastWorkout: WorkoutSession? { recentSessions.first }
     
     var body: some View {
-        ZStack {
+        Group {
             if isLoading {
-                // Enhanced loading view with animation
+                // Loading screen with gradient
                 ZStack {
-                    // Match the main gradient exactly
-                    if #available(iOS 18.0, *) {
-                        TimelineView(.animation) { context in
-                            let time = context.date.timeIntervalSince1970
-                            let offsetX = Float(sin(time)) * 0.1
-                            let offsetY = Float(cos(time)) * 0.1
-                            
-                            MeshGradient(
-                                width: 4,
-                                height: 4,
-                                points: [
-                                    [0.0, 0.0],
-                                    [0.3, 0.0],
-                                    [0.7, 0.0],
-                                    [1.0, 0.0],
-                                    [0.0, 0.3],
-                                    [0.2 + offsetX, 0.4 + offsetY],
-                                    [0.7 + offsetX, 0.2 + offsetY],
-                                    [1.0, 0.3],
-                                    [0.0, 0.7],
-                                    [0.3 + offsetX, 0.8],
-                                    [0.7 + offsetX, 0.6],
-                                    [1.0, 0.7],
-                                    [0.0, 1.0],
-                                    [0.3, 1.0],
-                                    [0.7, 1.0],
-                                    [1.0, 1.0]
-                                ],
-                                colors: [
-                                    .black, .black.opacity(0.9), .black.opacity(0.8), .black,
-                                    .black.opacity(0.7), .purple.opacity(0.8), .indigo.opacity(0.7), .black.opacity(0.6),
-                                    .purple.opacity(0.6), .pink.opacity(0.7), .orange.opacity(0.6), .purple.opacity(0.5),
-                                    .orange.opacity(0.7), .yellow.opacity(0.6), .pink.opacity(0.7), .purple.opacity(0.8)
-                                ],
-                                smoothsColors: true
-                            )
-                            .ignoresSafeArea()
-                        }
-                    } else {
-                        LinearGradient(
-                            colors: [
-                                .purple,
-                                .pink,
-                                .orange,
-                                .yellow
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        .ignoresSafeArea()
-                    }
+                    GradientBackground()
                     
-                    // Animated noise overlay for loading screen
-                    if #available(iOS 18.0, *) {
-                        TimelineView(.animation(minimumInterval: 0.1)) { timeline in
-                            GeometryReader { geometry in
-                                Canvas { context, size in
-                                    let time = timeline.date.timeIntervalSince1970
-                                    
-                                    for i in 0..<8000 {
-                                        let baseX = Double((i * 2654435761) % Int(size.width))
-                                        let baseY = Double((i * 1597334677) % Int(size.height))
-                                        let flowX = sin(time * 0.3 + Double(i) * 0.001) * 5
-                                        let flowY = cos(time * 0.2 + Double(i) * 0.001) * 3
-                                        let x = (baseX + flowX).truncatingRemainder(dividingBy: size.width)
-                                        let y = (baseY + flowY).truncatingRemainder(dividingBy: size.height)
-                                        let baseOpacity = 0.1 + (Double(i % 100) / 100.0) * 0.15
-                                        let opacity = baseOpacity + sin(time * 2 + Double(i) * 0.01) * 0.05
-                                        let particleSize = 0.3 + (Double(i % 10) / 10.0) * 1.7
-                                        
-                                        context.fill(
-                                            Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                            with: .color(.white.opacity(opacity))
-                                        )
-                                    }
-                                }
-                                .allowsHitTesting(false)
-                                .blendMode(.overlay)
-                            }
-                            .ignoresSafeArea()
-                        }
-                    } else {
-                        GeometryReader { geometry in
-                            Canvas { context, size in
-                                for _ in 0..<8000 {
-                                    let x = Double.random(in: 0...size.width)
-                                    let y = Double.random(in: 0...size.height)
-                                    let opacity = Double.random(in: 0.1...0.25)
-                                    let particleSize = Double.random(in: 0.3...2.0)
-                                    
-                                    context.fill(
-                                        Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                        with: .color(.white.opacity(opacity))
-                                    )
-                                }
-                            }
-                            .allowsHitTesting(false)
-                            .blendMode(.overlay)
-                        }
-                        .ignoresSafeArea()
-                    }
-                    
-                    VStack(spacing: 24) {
+                    VStack(spacing: 32) {
                         ZStack {
                             Circle()
-                                .stroke(Color.white.opacity(0.2), lineWidth: 3)
-                                .frame(width: 100, height: 100)
-                            
-                            Circle()
-                                .trim(from: 0, to: 0.3)
+                                .trim(from: 0, to: 0.8)
                                 .stroke(
                                     LinearGradient(
                                         colors: [Color.white, Color.white.opacity(0.4)],
@@ -175,132 +74,44 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             } else {
-                // Minimal single-page design
+                // Main app with persistent gradient background
                 NavigationStack {
                     ZStack {
-                        // Layer 1: Animated gradient background
-                        if #available(iOS 18.0, *) {
-                            TimelineView(.animation) { context in
-                                let time = context.date.timeIntervalSince1970
-                                let offsetX = Float(sin(time)) * 0.1
-                                let offsetY = Float(cos(time)) * 0.1
-                                
-                                MeshGradient(
-                                    width: 4,
-                                    height: 4,
-                                    points: [
-                                        [0.0, 0.0],
-                                        [0.3, 0.0],
-                                        [0.7, 0.0],
-                                        [1.0, 0.0],
-                                        [0.0, 0.3],
-                                        [0.2 + offsetX, 0.4 + offsetY],
-                                        [0.7 + offsetX, 0.2 + offsetY],
-                                        [1.0, 0.3],
-                                        [0.0, 0.7],
-                                        [0.3 + offsetX, 0.8],
-                                        [0.7 + offsetX, 0.6],
-                                        [1.0, 0.7],
-                                        [0.0, 1.0],
-                                        [0.3, 1.0],
-                                        [0.7, 1.0],
-                                        [1.0, 1.0]
-                                    ],
-                                    colors: [
-                                        .black, .black.opacity(0.9), .black.opacity(0.8), .black,
-                                        .black.opacity(0.7), .purple.opacity(0.8), .indigo.opacity(0.7), .black.opacity(0.6),
-                                        .purple.opacity(0.6), .pink.opacity(0.7), .orange.opacity(0.6), .purple.opacity(0.5),
-                                        .orange.opacity(0.7), .yellow.opacity(0.6), .pink.opacity(0.7), .purple.opacity(0.8)
-                                    ],
-                                    smoothsColors: true
-                                )
-                                .ignoresSafeArea()
-                            }
-                        } else {
-                            // Fallback for iOS 17 and earlier
-                            LinearGradient(
-                                colors: [
-                                    .purple,
-                                    .pink,
-                                    .orange,
-                                    .yellow
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                        // Persistent gradient background at root level
+                        GradientBackground()
                             .ignoresSafeArea()
-                        }
                         
-                        // Layer 2: Animated flowing grain effect
-                        if #available(iOS 18.0, *) {
-                            TimelineView(.animation(minimumInterval: 0.1)) { timeline in
-                                GeometryReader { geometry in
-                                    Canvas { context, size in
-                                        let time = timeline.date.timeIntervalSince1970
-                                        
-                                        for i in 0..<8000 {
-                                            let baseX = Double((i * 2654435761) % Int(size.width))
-                                            let baseY = Double((i * 1597334677) % Int(size.height))
-                                            let flowX = sin(time * 0.3 + Double(i) * 0.001) * 5
-                                            let flowY = cos(time * 0.2 + Double(i) * 0.001) * 3
-                                            let x = (baseX + flowX).truncatingRemainder(dividingBy: size.width)
-                                            let y = (baseY + flowY).truncatingRemainder(dividingBy: size.height)
-                                            let baseOpacity = 0.1 + (Double(i % 100) / 100.0) * 0.15
-                                            let opacity = baseOpacity + sin(time * 2 + Double(i) * 0.01) * 0.05
-                                            let particleSize = 0.3 + (Double(i % 10) / 10.0) * 1.7
-                                            
-                                            context.fill(
-                                                Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                                with: .color(.white.opacity(opacity))
-                                            )
-                                        }
-                                    }
-                                    .allowsHitTesting(false)
-                                    .blendMode(.overlay)
-                                }
-                                .ignoresSafeArea()
-                            }
-                        } else {
-                            GeometryReader { geometry in
-                                Canvas { context, size in
-                                    for _ in 0..<8000 {
-                                        let x = Double.random(in: 0...size.width)
-                                        let y = Double.random(in: 0...size.height)
-                                        let opacity = Double.random(in: 0.1...0.25)
-                                        let particleSize = Double.random(in: 0.3...2.0)
-                                        
-                                        context.fill(
-                                            Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                            with: .color(.white.opacity(opacity))
-                                        )
-                                    }
-                                }
-                                .allowsHitTesting(false)
-                                .blendMode(.overlay)
-                            }
-                            .ignoresSafeArea()
-                        }
-                        
-                        // Layer 3: UI Components (above gradient and noise)
+                        // Content layer
                         ZStack {
                             // Profile button positioned absolutely at top right
                             VStack {
                                 HStack {
                                     Spacer()
-                                    NavigationLink(destination: ProfileView()) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(.ultraThinMaterial)
-                                                .frame(width: 44, height: 44)
-                                                .overlay(
-                                                    Circle()
-                                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                                )
-                                            
-                                            Image(systemName: "person.fill")
-                                                .font(.system(size: 20, weight: .medium))
-                                                .foregroundColor(.white)
+                                    ZStack {
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                            .frame(width: 44, height: 44)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                            )
+                                        
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 20, weight: .medium))
+                                            .foregroundColor(.white)
+                                    }
+                                    .scaleEffect(profileButtonScale)
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            profileButtonScale = 0.9
                                         }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                profileButtonScale = 1.0
+                                            }
+                                            showingProfile = true
+                                        }
+                                        settings.impactFeedback(style: .light)
                                     }
                                     .padding(.trailing, 20)
                                     .padding(.top, 50)
@@ -308,129 +119,222 @@ struct ContentView: View {
                                 Spacer()
                             }
                             
-                            // Three buttons truly centered
-                            HStack(spacing: 16) {
-                                // Repeat last workout button
-                                Button(action: {
-                                    if let last = lastWorkout {
-                                        repeatWorkout(last)
-                                    }
-                                }) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                            )
-                                        
-                                        Image(systemName: "arrow.clockwise")
-                                            .font(.system(size: 26, weight: .semibold))
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .opacity(lastWorkout == nil ? 0.4 : 1.0)
-                                .disabled(lastWorkout == nil)
+                            // Main content area
+                            VStack(spacing: 40) {
+                                // App title
+                                Text("Liftrack")
+                                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.top, 100)
                                 
-                                // Start new workout button (primary)
-                                Button(action: startEmptyWorkout) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(.thinMaterial)
-                                            .frame(width: 140, height: 80)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
-                                            )
-                                        
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "plus.circle.fill")
-                                                .font(.system(size: 24, weight: .semibold))
-                                            Text("Workout")
-                                                .font(.system(size: 18, weight: .bold))
+                                Spacer()
+                                
+                                // Three buttons in center
+                                HStack(spacing: 20) {
+                                    // Repeat last workout button - circular ghost style with animation
+                                    Circle()
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                        .frame(width: 65, height: 65)
+                                        .background(
+                                            Circle()
+                                                .fill(.ultraThinMaterial.opacity(0.3))
+                                        )
+                                        .overlay(
+                                            Image(systemName: "arrow.clockwise")
+                                                .font(.system(size: 22, weight: .medium))
+                                                .foregroundColor(.white.opacity(0.9))
+                                        )
+                                        .scaleEffect(repeatButtonScale)
+                                        .opacity(buttonsAppeared ? (lastWorkout == nil ? 0.3 : 1.0) : 0)
+                                        .offset(y: buttonsAppeared ? 0 : 50)
+                                        .rotation3DEffect(
+                                            .degrees(buttonsAppeared ? 0 : -90),
+                                            axis: (x: 1, y: 0, z: 0)
+                                        )
+                                        .onTapGesture {
+                                            guard lastWorkout != nil else { return }
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                repeatButtonScale = 0.85
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                    repeatButtonScale = 1.0
+                                                }
+                                                if let last = lastWorkout {
+                                                    repeatWorkout(last)
+                                                }
+                                            }
+                                            settings.impactFeedback(style: .medium)
                                         }
-                                        .foregroundColor(.white)
-                                    }
-                                }
-                                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
-                                
-                                // Templates button
-                                Button(action: { showingTemplatePicker = true }) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(.ultraThinMaterial)
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                            )
-                                        
-                                        Image(systemName: "doc.text")
-                                            .font(.system(size: 26, weight: .semibold))
+                                        .disabled(lastWorkout == nil)
+                                    
+                                    // Start new workout button - larger pill with gradient border and hero animation
+                                    Capsule()
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [
+                                                    .white.opacity(0.5),
+                                                    .purple.opacity(0.3),
+                                                    .pink.opacity(0.3)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 2
+                                        )
+                                        .frame(width: 160, height: 65)
+                                        .background(
+                                            Capsule()
+                                                .fill(.ultraThinMaterial.opacity(0.5))
+                                        )
+                                        .overlay(
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: 20, weight: .semibold))
+                                                Text("Workout")
+                                                    .font(.system(size: 17, weight: .semibold))
+                                            }
                                             .foregroundColor(.white)
-                                    }
+                                        )
+                                        .shadow(color: .purple.opacity(0.3), radius: 15, x: 0, y: 8)
+                                        .scaleEffect(workoutButtonScale)
+                                        .opacity(buttonsAppeared ? 1 : 0)
+                                        .offset(y: buttonsAppeared ? 0 : 100)
+                                        .onTapGesture {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                                                workoutButtonScale = 0.9
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                                                    workoutButtonScale = 1.1
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                        workoutButtonScale = 1.0
+                                                    }
+                                                    startEmptyWorkout()
+                                                }
+                                            }
+                                            settings.impactFeedback(style: .medium)
+                                        }
+                                    
+                                    // Templates button - circular ghost style with animation
+                                    Circle()
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                        .frame(width: 65, height: 65)
+                                        .background(
+                                            Circle()
+                                                .fill(.ultraThinMaterial.opacity(0.3))
+                                        )
+                                        .overlay(
+                                            Image(systemName: "doc.text")
+                                                .font(.system(size: 22, weight: .medium))
+                                                .foregroundColor(.white.opacity(0.9))
+                                        )
+                                        .scaleEffect(templateButtonScale)
+                                        .opacity(buttonsAppeared ? 1 : 0)
+                                        .offset(y: buttonsAppeared ? 0 : 50)
+                                        .rotation3DEffect(
+                                            .degrees(buttonsAppeared ? 0 : 90),
+                                            axis: (x: 1, y: 0, z: 0)
+                                        )
+                                        .onTapGesture {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                templateButtonScale = 0.85
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                    templateButtonScale = 1.0
+                                                }
+                                                showingTemplatePicker = true
+                                            }
+                                            settings.impactFeedback(style: .medium)
+                                        }
                                 }
+                                
+                                Spacer()
+                                Spacer()
                             }
                         }
-                        
-                        // Active workout overlay (if exists)
-                        if let activeSession = activeSessions.first {
-                            VStack {
-                                Spacer()
-                                MinimizedWorkoutBar(session: activeSession, selectedTab: .constant(0))
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                            
+                            // Active workout overlay (if exists)
+                            if let activeSession = activeSessions.first {
+                                VStack {
+                                    Spacer()
+                                    MinimizedWorkoutBar(session: activeSession, selectedTab: .constant(0))
+                                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                                }
                             }
                         }
                     }
                     .navigationBarHidden(true)
                     .sheet(isPresented: $showingTemplatePicker) {
-                        SimpleTemplatePickerSheet(onSelect: startWorkoutFromTemplate)
+                            SimpleTemplatePickerSheet(onSelect: startWorkoutFromTemplate)
+                                .presentationBackground(.ultraThinMaterial)
+                    }
+                    .sheet(isPresented: $showingProfile) {
+                            NavigationStack {
+                                ProfileView()
+                            }
+                            .presentationBackground(.ultraThinMaterial.opacity(0.95))
                     }
                     .fullScreenCover(isPresented: .constant(!activeSessions.isEmpty && !timerManager.isMinimized)) {
-                        if let session = activeSessions.first {
-                            NavigationStack {
-                                ActiveWorkoutView(session: session)
+                            if let session = activeSessions.first {
+                                NavigationStack {
+                                    ActiveWorkoutView(session: session)
+                                }
                             }
-                        }
                     }
                 }
-            }
         }
-        .preferredColorScheme(.dark) // Keep dark mode for better contrast
-        .tint(.white) // White tint for controls
+        .preferredColorScheme(.dark)
+        .tint(.white)
         .onAppear {
             guard !hasInitialized else { return }
             hasInitialized = true
             
-            // Check if we have an active workout and should skip loading screen
             let hasActiveSession = !activeSessions.isEmpty
             shouldShowLoadingScreen = !hasActiveSession
             
-            // If we have an active workout, skip loading
             if hasActiveSession {
                 isLoading = false
+                buttonsAppeared = true
             } else {
-                // Perform initial setup with loading screen
                 Task {
-                    // Seed data in background
                     await MainActor.run {
                         DataSeeder.seedExercisesIfNeeded(context: modelContext)
                     }
                     
-                    // Load settings
                     _ = settings.accentColor
                     _ = settings.appearanceMode
                     
-                    // Only show loading screen if no active workout
                     if shouldShowLoadingScreen {
-                        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
                     }
                     
-                    // Fade out launch screen
                     await MainActor.run {
                         withAnimation(.easeOut(duration: 0.5)) {
                             isLoading = false
+                        }
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                                buttonsAppeared = true
+                            }
                         }
                     }
                 }
@@ -451,9 +355,7 @@ struct ContentView: View {
         let session = WorkoutSession()
         session.templateName = original.templateName
         
-        // Copy exercises and sets
         for exercise in original.exercises {
-            // Find the exercise object
             let exerciseData = exercises.first { $0.id == exercise.exerciseId } ?? Exercise(name: exercise.exerciseName)
             let newExercise = SessionExercise(
                 exercise: exerciseData,
@@ -479,97 +381,79 @@ struct ContentView: View {
     
     private func startWorkoutFromTemplate(_ template: WorkoutTemplate) {
         let session = WorkoutSession()
-        session.templateId = template.id
         session.templateName = template.name
+        session.templateId = template.id
         
-        // Copy from template
-        for workoutExercise in template.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+        for templateExercise in template.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }) {
             let sessionExercise = SessionExercise(
-                exercise: workoutExercise.exercise,
-                orderIndex: workoutExercise.orderIndex
+                exercise: templateExercise.exercise,
+                orderIndex: templateExercise.orderIndex,
+                customRestSeconds: templateExercise.customRestSeconds
             )
+            sessionExercise.supersetGroupId = templateExercise.supersetGroupId
             
-            for templateSet in workoutExercise.templateSets.sorted(by: { $0.setNumber < $1.setNumber }) {
-                let set = WorkoutSet(
-                    setNumber: templateSet.setNumber,
-                    weight: templateSet.weight,
-                    reps: templateSet.reps
-                )
-                sessionExercise.sets.append(set)
+            if !templateExercise.templateSets.isEmpty {
+                for templateSet in templateExercise.templateSets.sorted(by: { $0.setNumber < $1.setNumber }) {
+                    let set = WorkoutSet(setNumber: templateSet.setNumber)
+                    set.reps = templateSet.reps
+                    set.weight = templateSet.weight
+                    sessionExercise.sets.append(set)
+                }
+            } else {
+                for i in 1...templateExercise.targetSets {
+                    let set = WorkoutSet(setNumber: i)
+                    set.reps = templateExercise.targetReps
+                    set.weight = templateExercise.targetWeight ?? 0
+                    sessionExercise.sets.append(set)
+                }
             }
             
             session.exercises.append(sessionExercise)
         }
         
         template.lastUsedAt = Date()
+        
         modelContext.insert(session)
         timerManager.startWorkoutTimer()
         settings.impactFeedback(style: .medium)
+        
+        try? modelContext.save()
     }
 }
 
-// MARK: - Template Picker Sheet (simplified)
-private struct SimpleTemplatePickerSheet: View {
+struct SimpleTemplatePickerSheet: View {
+    @Query(sort: \WorkoutTemplate.lastUsedAt, order: .reverse) private var templates: [WorkoutTemplate]
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \WorkoutTemplate.name) private var templates: [WorkoutTemplate]
     let onSelect: (WorkoutTemplate) -> Void
     
     var body: some View {
         NavigationStack {
-            if templates.isEmpty {
-                VStack {
-                    Spacer()
-                    Text("No templates yet")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-                .navigationTitle("Templates")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Cancel") { dismiss() }
+            List(templates) { template in
+                Button(action: {
+                    onSelect(template)
+                    dismiss()
+                }) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(template.name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("\(template.exercises.count) exercises")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 4)
                 }
-            } else {
-                List(templates) { template in
-                    Button(action: {
-                        onSelect(template)
+            }
+            .navigationTitle("Select Template")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
                         dismiss()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(template.name)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.primary)
-                                Text("\(template.exercises.count) exercises")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-                .navigationTitle("Templates")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Cancel") { dismiss() }
                     }
                 }
             }
         }
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: [
-            Exercise.self,
-            WorkoutTemplate.self,
-            WorkoutSession.self
-        ], inMemory: true)
 }

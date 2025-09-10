@@ -12,7 +12,9 @@
       "Bash(xcodebuild:*)",
       "Bash(find:*)",
       "Bash(swift:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(/Users/noahbyrnes/Downloads/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project Liftrack.xcodeproj -scheme Liftrack -configuration Debug -destination 'platform=iOS Simulator,OS=26.0,name=iPhone 17' build)"
     ],
     "defaultMode": "acceptEdits"
   }

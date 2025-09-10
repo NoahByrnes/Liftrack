@@ -1,14 +1,16 @@
 import SwiftUI
 
 struct GradientBackground: View {
+    @State private var grainTime: Double = 0
+    
     var body: some View {
         ZStack {
             // Layer 1: Animated gradient background
             if #available(iOS 18.0, *) {
                 TimelineView(.animation) { context in
                     let time = context.date.timeIntervalSince1970
-                    let offsetX = Float(sin(time)) * 0.1
-                    let offsetY = Float(cos(time)) * 0.1
+                    let offsetX = Float(sin(time * 0.3)) * 0.1  // 3x slower movement
+                    let offsetY = Float(cos(time * 0.3)) * 0.1  // 3x slower movement
                     
                     MeshGradient(
                         width: 4,
@@ -33,9 +35,9 @@ struct GradientBackground: View {
                         ],
                         colors: [
                             .black, .black.opacity(0.9), .black.opacity(0.8), .black,
-                            .black.opacity(0.7), .purple.opacity(0.8), .indigo.opacity(0.7), .black.opacity(0.6),
-                            .purple.opacity(0.6), .pink.opacity(0.7), .orange.opacity(0.6), .purple.opacity(0.5),
-                            .orange.opacity(0.7), .yellow.opacity(0.6), .pink.opacity(0.7), .purple.opacity(0.8)
+                            .black.opacity(0.7), .indigo.opacity(0.8), .indigo.opacity(0.7), .black.opacity(0.6),
+                            .indigo.opacity(0.6), .blue.opacity(0.7), .black.opacity(0.6), .blue.opacity(0.5),
+                            .black.opacity(0.7), .blue.opacity(0.6), .blue.opacity(0.7), .indigo.opacity(0.8)
                         ],
                         smoothsColors: true
                     )
@@ -56,57 +58,76 @@ struct GradientBackground: View {
                 .ignoresSafeArea()
             }
             
-            // Layer 2: Animated noise overlay for flowing grain effect
+            // Layer 2: Very subtle film grain effect
             if #available(iOS 18.0, *) {
-                TimelineView(.animation(minimumInterval: 0.1)) { timeline in
+                TimelineView(.animation(minimumInterval: 2.0)) { timeline in // Very slow update - 0.5 fps
                     GeometryReader { geometry in
                         Canvas { context, size in
                             let time = timeline.date.timeIntervalSince1970
+                            let grainSize: CGFloat = 3.0 // Larger, softer grain
+                            let cols = Int(size.width / grainSize) + 1
+                            let rows = Int(size.height / grainSize) + 1
                             
-                            for i in 0..<8000 {
-                                // Create stable base positions using index as seed
-                                let baseX = Double((i * 2654435761) % Int(size.width))
-                                let baseY = Double((i * 1597334677) % Int(size.height))
-                                
-                                // Add flowing movement based on time
-                                let flowX = sin(time * 0.3 + Double(i) * 0.001) * 5
-                                let flowY = cos(time * 0.2 + Double(i) * 0.001) * 3
-                                
-                                // Final position with subtle drift
-                                let x = (baseX + flowX).truncatingRemainder(dividingBy: size.width)
-                                let y = (baseY + flowY).truncatingRemainder(dividingBy: size.height)
-                                
-                                // Vary opacity slightly over time for shimmer effect
-                                let baseOpacity = 0.1 + (Double(i % 100) / 100.0) * 0.15
-                                let opacity = baseOpacity + sin(time * 2 + Double(i) * 0.01) * 0.05
-                                
-                                let particleSize = 0.3 + (Double(i % 10) / 10.0) * 1.7
-                                
-                                context.fill(
-                                    Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                    with: .color(.white.opacity(opacity))
-                                )
+                            // Almost static seed with minimal change
+                            let frameNumber = Int(time * 0.5) // Extremely slow change
+                            
+                            // Draw extremely subtle grain
+                            for row in stride(from: 0, to: rows, by: 4) { // Skip even more
+                                for col in stride(from: 0, to: cols, by: 4) {
+                                    // Complex hash for better distribution
+                                    let seed1 = (row * 12347 + col * 8923 + frameNumber * 571)
+                                    let seed2 = (row * 3571 + col * 9871)
+                                    let hash = ((seed1 &* 2654435761) ^ (seed2 &* 1597334677)) % 1000000
+                                    let random = Double(hash) / 1000000.0
+                                    
+                                    // Very subtle intensity
+                                    let intensity = random * 0.03 // Max 3% opacity
+                                    
+                                    if intensity > 0.01 { // Very low threshold
+                                        // Static position (no random offset)
+                                        let x = CGFloat(col) * grainSize
+                                        let y = CGFloat(row) * grainSize
+                                        
+                                        context.fill(
+                                            Path(CGRect(x: x, y: y, width: grainSize, height: grainSize)),
+                                            with: .color(.white.opacity(intensity))
+                                        )
+                                    }
+                                }
                             }
                         }
                         .allowsHitTesting(false)
                         .blendMode(.overlay)
+                        .opacity(0.3) // Very low overall opacity
                     }
                     .ignoresSafeArea()
                 }
             } else {
-                // Fallback static grain for iOS 17
+                // Fallback grain for iOS 17 - static version
                 GeometryReader { geometry in
                     Canvas { context, size in
-                        for _ in 0..<8000 {
-                            let x = Double.random(in: 0...size.width)
-                            let y = Double.random(in: 0...size.height)
-                            let opacity = Double.random(in: 0.1...0.25)
-                            let particleSize = Double.random(in: 0.3...2.0)
-                            
-                            context.fill(
-                                Path(ellipseIn: CGRect(x: x, y: y, width: particleSize, height: particleSize)),
-                                with: .color(.white.opacity(opacity))
-                            )
+                        let grainSize: CGFloat = 2
+                        let cols = Int(size.width / grainSize) + 1
+                        let rows = Int(size.height / grainSize) + 1
+                        
+                        for row in 0..<rows {
+                            for col in 0..<cols {
+                                // Generate random value based on position only (static)
+                                let seed = (row * 1000 + col) * 2654435761
+                                let random = Double((seed & 0xFFFFFF)) / Double(0xFFFFFF)
+                                
+                                let intensity = random * random * 0.4
+                                
+                                if intensity > 0.05 {
+                                    let x = CGFloat(col) * grainSize
+                                    let y = CGFloat(row) * grainSize
+                                    
+                                    context.fill(
+                                        Path(CGRect(x: x, y: y, width: grainSize, height: grainSize)),
+                                        with: .color(.white.opacity(intensity))
+                                    )
+                                }
+                            }
                         }
                     }
                     .allowsHitTesting(false)

@@ -99,11 +99,7 @@ extension View {
     func glassEffect(cornerRadius: CGFloat = 16) -> some View {
         self
             .background(
-                ZStack {
-                    Color(.systemBackground).opacity(0.8)
-                    Color(.systemGray6).opacity(0.3)
-                }
-                .blur(radius: 0.5)
+                .ultraThinMaterial
             )
             .cornerRadius(cornerRadius)
             .overlay(
@@ -196,7 +192,7 @@ struct NeumorphicButtonStyle: ButtonStyle {
                     } else {
                         // Light mode neumorphic
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemBackground))
+                            .fill(.ultraThinMaterial)
                             .shadow(color: .gray.opacity(0.4), radius: configuration.isPressed ? 2 : 6,
                                    x: configuration.isPressed ? -2 : -4,
                                    y: configuration.isPressed ? -2 : -4)

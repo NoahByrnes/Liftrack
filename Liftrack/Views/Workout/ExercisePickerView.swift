@@ -33,101 +33,171 @@ struct ExercisePickerView: View {
     
     var body: some View {
         NavigationStack {
-            if exercises.isEmpty {
-                // Empty state - no exercises in database
-                VStack(spacing: 20) {
-                    Image(systemName: "dumbbell")
-                        .font(.system(size: 60))
-                        .foregroundColor(.secondary)
-                    
-                    Text("No Exercises Found")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Create a new exercise or restore default exercises")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            showingCreateExercise = true
-                        }) {
-                            Label("Create New Exercise", systemImage: "plus.circle.fill")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(settings.accentColor.color)
-                                .cornerRadius(10)
-                        }
+            Group {
+                if exercises.isEmpty {
+                    // Empty state - no exercises in database
+                    VStack(spacing: 20) {
+                        Image(systemName: "dumbbell")
+                            .font(.system(size: 60))
+                            .foregroundColor(.white.opacity(0.5))
                         
-                        Button(action: {
-                            reseedExercises()
-                        }) {
-                            Label("Restore Default Exercises", systemImage: "arrow.clockwise")
-                                .font(.headline)
-                                .foregroundColor(settings.accentColor.color)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(settings.accentColor.color.opacity(0.1))
-                                .cornerRadius(10)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                .padding()
-                .navigationTitle("Exercises")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-                }
-            } else {
-                List {
-                    ForEach(filteredExercises) { exercise in
-                    Button(action: { 
-                        if let index = selectedExercises.firstIndex(of: exercise) {
-                            selectedExercises.remove(at: index)
-                        } else {
-                            selectedExercises.append(exercise)
-                        }
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(exercise.name)
-                                    .foregroundColor(.primary)
-                                Text("Rest: \(formatRestTime(exercise.defaultRestSeconds))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                        Text("No Exercises Found")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Text("Create a new exercise or restore default exercises")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                showingCreateExercise = true
+                            }) {
+                                Label("Create New Exercise", systemImage: "plus.circle.fill")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [settings.accentColor.color.opacity(0.8), settings.accentColor.color.opacity(0.3)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 20)
+                                                    .fill(settings.accentColor.color.opacity(0.2))
+                                            )
+                                    )
                             }
-                            Spacer()
                             
-                            // Show order number if selected
-                            if let index = selectedExercises.firstIndex(of: exercise) {
-                                HStack(spacing: 4) {
-                                    Text("\(index + 1)")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .frame(width: 20, height: 20)
-                                        .background(settings.accentColor.color)
-                                        .clipShape(Circle())
-                                    
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(settings.accentColor.color)
-                                }
-                            } else {
-                                Image(systemName: "circle")
-                                    .foregroundColor(.secondary)
+                            Button(action: {
+                                reseedExercises()
+                            }) {
+                                Label("Restore Default Exercises", systemImage: "arrow.clockwise")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 20)
+                                                    .fill(.ultraThinMaterial.opacity(0.3))
+                                            )
+                                    )
                             }
                         }
+                        .padding(.horizontal)
                     }
+                    .padding()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ForEach(filteredExercises) { exercise in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(exercise.name)
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(.white)
+                                        Text("Rest: \(formatRestTime(exercise.defaultRestSeconds))")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                    Spacer()
+                                    
+                                    // Show selection indicator with soft design
+                                    if let index = selectedExercises.firstIndex(of: exercise) {
+                                        HStack(spacing: 8) {
+                                            Text("\(index + 1)")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .frame(width: 24, height: 24)
+                                                .background(
+                                                    Circle()
+                                                        .fill(settings.accentColor.color.opacity(0.8))
+                                                )
+                                            
+                                            Circle()
+                                                .strokeBorder(settings.accentColor.color, lineWidth: 2)
+                                                .background(
+                                                    Circle()
+                                                        .fill(settings.accentColor.color)
+                                                )
+                                                .frame(width: 22, height: 22)
+                                                .overlay(
+                                                    Image(systemName: "checkmark")
+                                                        .font(.system(size: 12, weight: .bold))
+                                                        .foregroundColor(.white)
+                                                )
+                                        }
+                                    } else {
+                                        Circle()
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
+                                            .frame(width: 22, height: 22)
+                                            .background(
+                                                Circle()
+                                                    .fill(Color.white.opacity(0.05))
+                                            )
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: selectedExercises.contains(exercise) ?
+                                                    [settings.accentColor.color.opacity(0.3), settings.accentColor.color.opacity(0.1)] :
+                                                    [.white.opacity(0.15), .white.opacity(0.05)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(.ultraThinMaterial.opacity(0.3))
+                                        )
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if let index = selectedExercises.firstIndex(of: exercise) {
+                                        selectedExercises.remove(at: index)
+                                    } else {
+                                        selectedExercises.append(exercise)
+                                    }
+                                    settings.impactFeedback(style: .light)
+                                }
+                            }
+                        }
+                        .padding()
+                    }
+                    .searchable(text: $searchText, prompt: "Search exercises")
                 }
             }
-            .searchable(text: $searchText, prompt: "Search exercises")
             .navigationTitle("Exercises")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -137,6 +207,7 @@ struct ExercisePickerView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .foregroundColor(.white)
                 }
                 ToolbarItem(placement: .primaryAction) {
                     if selectedExercises.isEmpty {
@@ -156,7 +227,6 @@ struct ExercisePickerView: View {
                         .fontWeight(.semibold)
                     }
                 }
-            }
             }
         }
         .sheet(isPresented: $showingCreateExercise) {

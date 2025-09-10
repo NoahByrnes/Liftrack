@@ -98,9 +98,4 @@ struct TabButton: View {
         Spacer()
         ModernTabBar(selectedTab: .constant(1))
     }
-    #if os(iOS)
-    .background(Color(UIColor.systemBackground))
-    #else
-    .background(Color.white)
-    #endif
 }

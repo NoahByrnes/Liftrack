@@ -1,0 +1,1626 @@
+import SwiftUI
+import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
+
+struct ActiveWorkoutView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var session: WorkoutSession
+    @StateObject private var settings = SettingsManager.shared
+    @StateObject private var timerManager = EnhancedWorkoutTimerManager.shared
+    @State private var showingAddExercise = false
+    @State private var showingRestTimer = false
+    @State private var showingCancelAlert = false
+    @State private var showingEmptyWorkoutAlert = false
+    @State private var appearAnimation = false
+    @State private var headerScale = 0.9
+    @State private var isEditMode = false
+    @State private var showingFinishConfirmation = false
+    @State private var heroAnimationPhase = 0
+    
+    // Template-related properties
+    @Query(sort: \WorkoutTemplate.lastUsedAt, order: .reverse) private var templates: [WorkoutTemplate]
+    
+    private var recentTemplates: [WorkoutTemplate] {
+        Array(templates.prefix(5))
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            headerView
+            exercisesList
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.3)) {
+                appearAnimation = true
+            }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.1)) {
+                headerScale = 1.0
+            }
+            
+            // Hero animation sequence
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.2)) {
+                heroAnimationPhase = 1
+            }
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.4)) {
+                heroAnimationPhase = 2
+            }
+        }
+        .sheet(isPresented: $showingAddExercise) {
+            ExercisePickerView { exercise in
+                addExercise(exercise)
+            }
+        }
+        .sheet(isPresented: $showingRestTimer) {
+            ExpandedRestTimerView(
+                remainingTime: $timerManager.restTimeRemaining,
+                totalDuration: timerManager.restTotalDuration,
+                isRunning: timerManager.showRestBar,
+                onDismiss: {
+                    showingRestTimer = false
+                },
+                onStop: {
+                    timerManager.endRestTimer()
+                    showingRestTimer = false
+                }
+            )
+            .presentationDetents([.medium])
+        }
+        .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
+            Button("Keep Going", role: .cancel) { }
+            Button("Cancel Workout", role: .destructive) {
+                cancelWorkout()
+            }
+        } message: {
+            Text("Are you sure you want to cancel this workout? All progress will be lost.")
+        }
+        .alert("Empty Workout", isPresented: $showingEmptyWorkoutAlert) {
+            Button("Add Exercises") {
+                showingAddExercise = true
+            }
+            Button("Cancel Workout", role: .destructive) {
+                cancelWorkout()
+            }
+        } message: {
+            Text("You haven't added any exercises yet. Would you like to add some or cancel the workout?")
+        }
+        .confirmationDialog("Finish Workout", isPresented: $showingFinishConfirmation) {
+            Button("Finish Workout") {
+                finishWorkout()
+            }
+            Button("Continue", role: .cancel) { }
+        } message: {
+            Text("Are you ready to finish this workout?")
+        }
+        .onChange(of: timerManager.restTimeRemaining) { oldValue, newValue in
+            if newValue == 0 && oldValue > 0 {
+                showingRestTimer = false
+            }
+        }
+    }
+    
+    private var exercisesList: some View {
+        ZStack {
+            exercisesScrollView
+            restTimerOverlay
+        }
+    }
+    
+    private var exercisesScrollView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                            // Show template carousel only when no exercises are present
+                            if session.exercises.isEmpty && !recentTemplates.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("QUICK START FROM TEMPLATE")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .padding(.horizontal, 20)
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 12) {
+                                            ForEach(recentTemplates) { template in
+                                                TemplateQuickCard(template: template) {
+                                                    loadTemplate(template)
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal, 20)
+                                    }
+                                }
+                                .padding(.top, 8)
+                            }
+                        
+                        ForEach(Array(session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }).enumerated()), id: \.element.id) { index, exercise in
+                            VStack(spacing: 0) {
+                                // Superset indicator/divider
+                                if index > 0 {
+                                    let exercises = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+                                    let prevExercise = exercises[index - 1]
+                                    if let groupId = exercise.supersetGroupId,
+                                       prevExercise.supersetGroupId == groupId {
+                                        HStack {
+                                            Text("SUPERSET")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white.opacity(0.4))
+                                            VStack(spacing: 2) {
+                                                ForEach(0..<3, id: \.self) { _ in
+                                                    Circle()
+                                                        .fill(Color.white.opacity(0.3))
+                                                        .frame(width: 2, height: 2)
+                                                }
+                                            }
+                                            Text("WITH ABOVE")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white.opacity(0.4))
+                                        }
+                                        .padding(.vertical, 12)
+                                    }
+                                }
+                                
+                                ExerciseCard(
+                                    exercise: exercise,
+                                    session: session,
+                                    isEditMode: isEditMode,
+                                    onSetComplete: {
+                                        // Only start rest timer if not in a superset or it's the last exercise in the superset
+                                        let exercises = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+                                        let currentIndex = exercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
+                                        
+                                        if !timerManager.isRunning {
+                                            settings.impactFeedback(style: .light)
+                                        }
+                                        
+                                        var shouldStartRest = true
+                                        
+                                        // Check if this exercise is part of a superset
+                                        if let groupId = exercise.supersetGroupId {
+                                            // Check if there's a next exercise in the same superset
+                                            if currentIndex < exercises.count - 1 {
+                                                let nextExercise = exercises[currentIndex + 1]
+                                                if nextExercise.supersetGroupId == groupId {
+                                                    // Next exercise is in the same superset, don't start rest
+                                                    shouldStartRest = false
+                                                }
+                                            }
+                                        }
+                                        
+                                        if shouldStartRest {
+                                            timerManager.startRestTimer(for: exercise.restSeconds)
+                                        }
+                                    },
+                                    onDelete: {
+                                        withAnimation {
+                                            // Check if this exercise is part of a superset
+                                            if let groupId = exercise.supersetGroupId {
+                                                // Find all exercises in the same superset
+                                                let sameGroup = session.exercises.filter { $0.supersetGroupId == groupId }
+                                                if sameGroup.count == 2 {
+                                                    // If only 2 exercises in the superset, remove the superset grouping
+                                                    sameGroup.forEach { $0.supersetGroupId = nil }
+                                                }
+                                            }
+                                            
+                                            session.exercises.removeAll { $0.id == exercise.id }
+                                            
+                                            // Re-index remaining exercises
+                                            let sorted = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+                                            for (index, remainingExercise) in sorted.enumerated() {
+                                                remainingExercise.orderIndex = index
+                                            }
+                                            
+                                            try? modelContext.save()
+                                        }
+                                    }
+                                )
+                                .id(exercise.id)
+                            }
+                        }
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: session.exercises.map(\.id))
+                        
+                        // Add exercise button
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(settings.accentColor.color)
+                            Text("Add Exercise")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            ZStack {
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.1), Color.white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                .blur(radius: 5)
+                                
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 20)
+                        .onTapGesture {
+                            showingAddExercise = true
+                        }
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 20)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: appearAnimation)
+                    }
+                    .padding(.top, 8)
+                }
+                .scrollIndicators(.hidden)
+    }
+    
+    private var restTimerOverlay: some View {
+        Group {
+            if timerManager.showRestBar {
+                    VStack {
+                        Spacer()
+                        
+                        VStack(spacing: 0) {
+                            HStack {
+                                // Timer display and label
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("REST TIMER")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.6))
+                                    
+                                    Text(formatRestTime(timerManager.restTimeRemaining))
+                                        .font(.system(size: 32, weight: .thin, design: .monospaced))
+                                        .foregroundColor(.white)
+                                }
+                                
+                                Spacer()
+                                
+                                // Soft circular time adjustment buttons
+                                Circle()
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                                    .frame(width: 28, height: 28)
+                                    .background(
+                                        Circle()
+                                            .fill(.ultraThinMaterial.opacity(0.2))
+                                    )
+                                    .overlay(
+                                        Image(systemName: "minus")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    )
+                                    .onTapGesture {
+                                        timerManager.adjustRestTime(by: -15)
+                                    }
+                                
+                                Circle()
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                                    .frame(width: 28, height: 28)
+                                    .background(
+                                        Circle()
+                                            .fill(.ultraThinMaterial.opacity(0.2))
+                                    )
+                                    .overlay(
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    )
+                                    .onTapGesture {
+                                        timerManager.adjustRestTime(by: 15)
+                                    }
+                                
+                                Text("Expand")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [settings.accentColor.color.opacity(0.4), settings.accentColor.color.opacity(0.1)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1
+                                            )
+                                            .background(
+                                                Capsule()
+                                                    .fill(.ultraThinMaterial.opacity(0.3))
+                                            )
+                                    )
+                                    .onTapGesture {
+                                        showingRestTimer = true
+                                    }
+                                
+                                Text("End Rest")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.2), .white.opacity(0.05)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1
+                                            )
+                                            .background(
+                                                Capsule()
+                                                    .fill(.ultraThinMaterial.opacity(0.1))
+                                            )
+                                    )
+                                    .onTapGesture {
+                                        timerManager.endRestTimer()
+                                    }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(
+                                ZStack {
+                                    // Softer, more refined glassmorphic background
+                                    LinearGradient(
+                                        colors: [
+                                            Color.black.opacity(0.85),
+                                            Color.black.opacity(0.75)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    .blur(radius: 10)
+                                    
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                }
+                            )
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 100) // Position above tab bar
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+    
+    private var headerView: some View {
+        VStack(spacing: 0) {
+                // Clean, minimal header
+                VStack(spacing: 16) {
+                    // Top row with minimize and menu
+                    HStack {
+                        // Minimize button with soft design
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(.ultraThinMaterial.opacity(0.3))
+                            )
+                            .overlay(
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .font(.system(size: 18, weight: .medium))
+                            )
+                            .onTapGesture {
+                                if session.exercises.isEmpty {
+                                    cancelWorkout()
+                                } else {
+                                    withAnimation {
+                                        timerManager.isMinimized = true
+                                        dismiss()
+                                    }
+                                }
+                            }
+                        
+                        Spacer()
+                        
+                        // Edit/Done toggle with soft design
+                        Text(isEditMode ? "Done" : "Edit")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                                    .background(
+                                        Capsule()
+                                            .fill(.ultraThinMaterial.opacity(0.3))
+                                    )
+                            )
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    isEditMode.toggle()
+                                }
+                                settings.impactFeedback(style: .light)
+                            }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 50)
+                    
+                    // Central timer display with hero animation
+                    VStack(spacing: 8) {
+                        Text(formatTime(timerManager.elapsedTime))
+                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .scaleEffect(heroAnimationPhase >= 1 ? 1 : 0.5)
+                            .opacity(heroAnimationPhase >= 1 ? 1 : 0)
+                            .blur(radius: heroAnimationPhase >= 1 ? 0 : 10)
+                        
+                        if !session.templateName.isEmpty {
+                            Text(session.templateName)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
+                                .opacity(heroAnimationPhase >= 2 ? 1 : 0)
+                                .offset(y: heroAnimationPhase >= 2 ? 0 : 20)
+                        }
+                    }
+                    
+                    // Action buttons row
+                    HStack(spacing: 12) {
+                        // Rest timer button with soft design
+                        Menu {
+                            ForEach([30, 60, 90, 120], id: \.self) { seconds in
+                                Button(action: {
+                                    timerManager.startRestTimer(seconds: seconds)
+                                }) {
+                                    Label(formatPresetTime(seconds), systemImage: "timer")
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "timer")
+                                Text("Rest")
+                            }
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.5
+                                    )
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .fill(.ultraThinMaterial.opacity(0.3))
+                                    )
+                            )
+                        }
+                        
+                        // Finish workout button with soft design
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Finish")
+                        }
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [Color.green.opacity(0.6), Color.green.opacity(0.2)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.green.opacity(0.1))
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .fill(.ultraThinMaterial.opacity(0.3))
+                                        )
+                                )
+                        )
+                        .onTapGesture {
+                            if session.exercises.isEmpty {
+                                showingEmptyWorkoutAlert = true
+                            } else {
+                                showingFinishConfirmation = true
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .padding(.bottom, 20)
+        }
+    }
+    // MARK: - Helper Functions
+    
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%02d:%02d", mins, secs)
+    }
+    
+    private func formatTime(_ seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let secs = seconds % 60
+        
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, secs)
+        } else {
+            return String(format: "%02d:%02d", minutes, secs)
+        }
+    }
+    
+    private func formatPresetTime(_ seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds)s"
+        } else if seconds % 60 == 0 {
+            return "\(seconds / 60)m"
+        } else {
+            return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+        }
+    }
+    
+    private func finishWorkout() {
+        timerManager.cleanup()
+        
+        session.completedAt = Date()
+        
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error finishing workout: \(error)")
+        }
+        
+        dismiss()
+    }
+    
+    private func cancelWorkout() {
+        timerManager.cleanup()
+        
+        // Clear all relationships first to avoid SwiftData crash
+        session.exercises.removeAll()
+        
+        // Delete the session
+        modelContext.delete(session)
+        
+        // Save changes
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error canceling workout: \(error)")
+        }
+        
+        dismiss()
+    }
+    
+    private func addExercise(_ exercise: Exercise) {
+        let newIndex = (session.exercises.map { $0.orderIndex }.max() ?? -1) + 1
+        // Use default rest time from settings
+        let defaultRest = UserDefaults.standard.integer(forKey: "defaultRestTime")
+        let sessionExercise = SessionExercise(
+            exercise: exercise, 
+            orderIndex: newIndex,
+            customRestSeconds: defaultRest > 0 ? defaultRest : 90  // Use settings default or fallback to 90
+        )
+        
+        for i in 1...3 {
+            let set = WorkoutSet(setNumber: i)
+            sessionExercise.sets.append(set)
+        }
+        
+        session.exercises.append(sessionExercise)
+        try? modelContext.save()
+    }
+    
+    private func loadTemplate(_ template: WorkoutTemplate) {
+        // Load exercises from template
+        for templateExercise in template.exercises.sorted(by: { $0.orderIndex < $1.orderIndex }) {
+            let sessionExercise = SessionExercise(
+                exercise: templateExercise.exercise,
+                orderIndex: templateExercise.orderIndex,
+                customRestSeconds: templateExercise.customRestSeconds
+            )
+            sessionExercise.supersetGroupId = templateExercise.supersetGroupId
+            
+            // Create sets based on template configuration
+            if !templateExercise.templateSets.isEmpty {
+                // Use the template sets if they exist
+                for templateSet in templateExercise.templateSets.sorted(by: { $0.setNumber < $1.setNumber }) {
+                    let set = WorkoutSet(setNumber: templateSet.setNumber)
+                    set.reps = templateSet.reps
+                    set.weight = templateSet.weight
+                    sessionExercise.sets.append(set)
+                }
+            } else {
+                // Otherwise create default sets based on targetSets/targetReps/targetWeight
+                for i in 1...templateExercise.targetSets {
+                    let set = WorkoutSet(setNumber: i)
+                    set.reps = templateExercise.targetReps
+                    set.weight = templateExercise.targetWeight ?? 0
+                    sessionExercise.sets.append(set)
+                }
+            }
+            
+            session.exercises.append(sessionExercise)
+        }
+        
+        // Update template's last used date
+        template.lastUsedAt = Date()
+        
+        // Save changes
+        try? modelContext.save()
+        
+        // Provide feedback
+        settings.impactFeedback(style: .medium)
+    }
+} // ActiveWorkoutView struct closes here
+
+struct ExerciseCard: View {
+    let exercise: SessionExercise
+    let session: WorkoutSession
+    let isEditMode: Bool
+    let onSetComplete: () -> Void
+    let onDelete: () -> Void
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var settings = SettingsManager.shared
+    @State private var isProcessingAction = false
+    @State private var showingNotesDialog = false
+    @State private var exerciseNotes = ""
+    @State private var showingRestTimerDialog = false
+    @State private var tempRestMinutes = 1
+    @State private var tempRestSeconds = 30
+    
+    private func formatRestTime(_ seconds: Int) -> String {
+        let mins = seconds / 60
+        let secs = seconds % 60
+        if mins > 0 && secs > 0 {
+            return "\(mins)m \(secs)s"
+        } else if mins > 0 {
+            return "\(mins)m"
+        } else {
+            return "\(secs)s"
+        }
+    }
+    
+    private func formatPresetTime(_ seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds)s"
+        } else if seconds % 60 == 0 {
+            return "\(seconds / 60)m"
+        } else {
+            return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+        }
+    }
+    
+    private func reorderSets(for exercise: SessionExercise) {
+        let warmupSets = exercise.sets.filter { $0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+        let regularSets = exercise.sets.filter { !$0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+        
+        // Renumber warmup sets
+        for (index, set) in warmupSets.enumerated() {
+            set.setNumber = index + 1
+        }
+        
+        // Renumber regular sets
+        for (index, set) in regularSets.enumerated() {
+            set.setNumber = index + 1
+        }
+    }
+    
+    
+    private func toggleSuperset() {
+        let exercises = session.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
+        
+        if exercise.supersetGroupId != nil {
+            // Remove from superset
+            exercise.supersetGroupId = nil
+        } else {
+            // Find the previous or next exercise to superset with
+            if let currentIndex = exercises.firstIndex(where: { $0.id == exercise.id }) {
+                let groupId = UUID().uuidString
+                exercise.supersetGroupId = groupId
+                
+                // Also set the next exercise to the same superset group
+                if currentIndex + 1 < exercises.count {
+                    exercises[currentIndex + 1].supersetGroupId = groupId
+                } else if currentIndex > 0 {
+                    // If this is the last exercise, group with previous
+                    exercises[currentIndex - 1].supersetGroupId = groupId
+                }
+            }
+        }
+        
+        try? modelContext.save()
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Superset indicator if part of a superset
+            if exercise.supersetGroupId != nil {
+                HStack {
+                    Image(systemName: "link")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("SUPERSET")
+                        .font(.system(size: 11, weight: .bold))
+                    Spacer()
+                }
+                .foregroundColor(settings.accentColor.color)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            }
+            
+            // Exercise Header
+            HStack {
+                Text(exercise.exerciseName)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                if isEditMode {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18))
+                        .foregroundColor(.red)
+                        .transition(.scale.combined(with: .opacity))
+                        .onTapGesture {
+                            #if os(iOS)
+                            SettingsManager.shared.impactFeedback(style: .medium)
+                            #endif
+                            onDelete()
+                        }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            // Rest Timer, Superset and Notes
+            HStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 13))
+                    Text("Rest: \(formatRestTime(exercise.restSeconds))")
+                        .font(.system(size: 13))
+                }
+                .foregroundColor(.secondary)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    tempRestMinutes = exercise.restSeconds / 60
+                    tempRestSeconds = exercise.restSeconds % 60
+                    showingRestTimerDialog = true
+                }
+                
+                Spacer()
+                
+                // Superset toggle button
+                HStack(spacing: 4) {
+                    Image(systemName: exercise.supersetGroupId != nil ? "link.circle.fill" : "link.circle")
+                        .font(.system(size: 13))
+                    Text(exercise.supersetGroupId != nil ? "Unlink" : "Superset")
+                        .font(.system(size: 13))
+                }
+                .foregroundColor(exercise.supersetGroupId != nil ? settings.accentColor.color : .secondary)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleSuperset()
+                }
+                
+                // Exercise notes button
+                HStack(spacing: 4) {
+                    Image(systemName: "note.text")
+                        .font(.system(size: 13))
+                    Text("Notes")
+                        .font(.system(size: 13))
+                }
+                .foregroundColor(.secondary)
+                .padding(.leading, 8)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showingNotesDialog = true
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            
+            // Sets Section  
+            VStack(spacing: 0) {
+                // Sets Header
+                HStack(spacing: 0) {
+                    Text("Set")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 50, alignment: .center)
+                    
+                    Text("Previous")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    Text("lbs")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 90, alignment: .center)
+                    
+                    Text("Reps")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .center)
+                    
+                    // Space for check mark
+                    Color.clear
+                        .frame(width: 40)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(.systemGray6).opacity(0.5))
+                
+                // Set Rows - Warmup sets first, then regular sets
+                ForEach(exercise.sets.sorted(by: { 
+                    if $0.isWarmup != $1.isWarmup {
+                        return $0.isWarmup
+                    }
+                    return $0.setNumber < $1.setNumber 
+                })) { set in
+                    WorkoutSetRow(
+                        set: set,
+                        exercise: exercise,
+                        isEditMode: isEditMode,
+                        onComplete: {
+                            onSetComplete()
+                        },
+                        canDelete: exercise.sets.count > 1,
+                        onDelete: {
+                            withAnimation {
+                                exercise.sets.removeAll { $0.id == set.id }
+                                // Renumber remaining sets
+                                reorderSets(for: exercise)
+                                try? modelContext.save()
+                            }
+                        }
+                    )
+                }
+                
+                
+                // Add Set Button - Using onTapGesture for better performance
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18))
+                    Text("Add Set")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                .foregroundColor(settings.accentColor.color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(settings.accentColor.color.opacity(0.1))
+                .cornerRadius(10)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard !isProcessingAction else { return }
+                    isProcessingAction = true
+                    let newSetNumber = (exercise.sets.map { $0.setNumber }.max() ?? 0) + 1
+                    let newSet = WorkoutSet(setNumber: newSetNumber)
+                    exercise.sets.append(newSet)
+                    try? modelContext.save()
+                    isProcessingAction = false
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+        }
+        .background(.ultraThinMaterial)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        )
+        .sheet(isPresented: $showingNotesDialog) {
+            NavigationStack {
+                VStack(spacing: 20) {
+                    Text("Exercise Notes")
+                        .font(.headline)
+                        .padding(.top)
+                    
+                    TextField("Add notes for this exercise...", text: $exerciseNotes, axis: .vertical)
+                        .padding()
+                        .background(Color(UIColor.systemGray6))
+                        .cornerRadius(10)
+                        .lineLimit(3...10)
+                    
+                    Spacer()
+                }
+                .padding()
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingNotesDialog = false
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            // Save notes to exercise
+                            try? modelContext.save()
+                            showingNotesDialog = false
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showingRestTimerDialog) {
+            NavigationStack {
+                VStack(spacing: 24) {
+                    Text("Rest Timer Settings")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .padding(.top)
+                    
+                    // Quick Preset Buttons
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("QUICK PRESETS")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            ForEach([30, 45, 60, 90, 120, 180], id: \.self) { seconds in
+                                VStack(spacing: 4) {
+                                    Image(systemName: "timer")
+                                        .font(.system(size: 20))
+                                    Text(formatPresetTime(seconds))
+                                        .font(.system(size: 13, weight: .medium))
+                                }
+                                .foregroundColor(exercise.customRestSeconds == seconds ? .white : settings.accentColor.color)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(exercise.customRestSeconds == seconds ? 
+                                            settings.accentColor.color : 
+                                            settings.accentColor.color.opacity(0.1))
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    tempRestMinutes = seconds / 60
+                                    tempRestSeconds = seconds % 60
+                                    exercise.customRestSeconds = seconds
+                                    try? modelContext.save()
+                                    showingRestTimerDialog = false
+                                    // Start timer immediately with preset
+                                    EnhancedWorkoutTimerManager.shared.startRestTimer(seconds: seconds)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    Divider()
+                    
+                    // Custom Time Picker
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("CUSTOM TIME")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 20) {
+                            VStack {
+                                Text("Minutes")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Picker("Minutes", selection: $tempRestMinutes) {
+                                    ForEach(0..<10) { min in
+                                        Text("\(min)").tag(min)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: 80, height: 100)
+                            }
+                            
+                            VStack {
+                                Text("Seconds")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Picker("Seconds", selection: $tempRestSeconds) {
+                                    ForEach([0, 15, 30, 45], id: \.self) { sec in
+                                        Text("\(sec)").tag(sec)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(width: 80, height: 100)
+                            }
+                        }
+                        
+                        // Current selection display
+                        Text("Rest time: \(formatRestTime((tempRestMinutes * 60) + tempRestSeconds))")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .cornerRadius(8)
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer()
+                }
+                .padding(.vertical)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingRestTimerDialog = false
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Start Timer") {
+                            let totalSeconds = (tempRestMinutes * 60) + tempRestSeconds
+                            exercise.customRestSeconds = totalSeconds
+                            try? modelContext.save()
+                            showingRestTimerDialog = false
+                            // Start timer immediately
+                            EnhancedWorkoutTimerManager.shared.startRestTimer(seconds: totalSeconds)
+                        }
+                        .fontWeight(.medium)
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+struct WorkoutSetRow: View {
+    let set: WorkoutSet
+    let exercise: SessionExercise
+    let isEditMode: Bool
+    let onComplete: () -> Void
+    let canDelete: Bool
+    let onDelete: () -> Void
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var settings = SettingsManager.shared
+    @AppStorage("show1RMEstimates") private var show1RMEstimates = true
+    // Removed @Query to improve performance - previous data should be passed from parent if needed
+    
+    @State private var weight = ""
+    @State private var reps = ""
+    @State private var showingRPEPicker = false
+    
+    // Get previous completed set values for placeholders
+    private var previousSetValues: (weight: Double, reps: Int)? {
+        let completedSets = exercise.sets
+            .filter { $0.isCompleted && $0.id != set.id }
+            .sorted { $0.setNumber > $1.setNumber }
+        
+        return completedSets.first.map { (weight: $0.weight, reps: $0.reps) }
+    }
+    
+    // Get previous workout data for this exercise  
+    // Now returns nil - previous data loading removed for performance
+    private var previousWorkoutData: (weight: Double, reps: Int)? {
+        return nil
+    }
+    
+    // Format weight to string, preserving decimals
+    private func formatWeight(_ weight: Double) -> String {
+        // If weight is a whole number, show without decimal
+        if weight == floor(weight) {
+            return "\(Int(weight))"
+        } else {
+            // Otherwise show with one decimal place
+            return String(format: "%.1f", weight)
+        }
+    }
+    
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
+    
+    private func rpeColor(_ rpe: Int) -> Color {
+        switch rpe {
+        case 1...4: return .green
+        case 5...6: return .yellow
+        case 7...8: return .orange
+        case 9...10: return .red
+        default: return .secondary
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background actions revealed on swipe (only in edit mode)
+            HStack(spacing: 0) {
+                // Duplicate action (swipe right) - dynamic width
+                if isEditMode && dragOffset > 0 {
+                    HStack {
+                        Image(systemName: "doc.on.doc.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .frame(width: 60)
+                            .frame(maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                duplicateSet()
+                            }
+                        
+                        Spacer()
+                    }
+                    .frame(width: max(0, dragOffset))
+                    .frame(maxHeight: .infinity)
+                    .background(
+                        Color.blue
+                            .opacity(dragOffset > 50 ? 1.0 : Double(dragOffset) / 50.0)
+                    )
+                }
+                
+                Spacer()
+                
+                // Delete action (swipe left) - dynamic width
+                if isEditMode && dragOffset < 0 && canDelete {
+                    HStack {
+                        Spacer()
+                        
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .frame(width: 60)
+                            .frame(maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.spring()) {
+                                    onDelete()
+                                }
+                            }
+                    }
+                    .frame(width: max(0, abs(dragOffset)))
+                    .frame(maxHeight: .infinity)
+                    .background(
+                        Color.red
+                            .opacity(abs(dragOffset) > 50 ? 1.0 : Double(abs(dragOffset)) / 50.0)
+                    )
+                }
+            }
+            .frame(maxHeight: .infinity)
+            
+            // Main content
+            HStack(spacing: 0) {
+                // Edit mode indicator
+                if isEditMode {
+                    Rectangle()
+                        .fill(settings.accentColor.color.opacity(0.3))
+                        .frame(width: 3)
+                        .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)))
+                }
+                // Set number
+                Text(set.isWarmup ? "W" : "\(set.setNumber)")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(set.isWarmup ? .orange : .primary)
+                    .frame(width: 50, alignment: .center)
+                    .onTapGesture {
+                        withAnimation {
+                            // Store the current set number before toggling
+                            let wasWarmup = set.isWarmup
+                            
+                            set.toggleWarmup()
+                            
+                            if !wasWarmup {
+                                // Becoming a warmup - give it the next warmup number
+                                let existingWarmupCount = exercise.sets.filter { $0.isWarmup && $0.id != set.id }.count
+                                set.setNumber = existingWarmupCount + 1
+                            } else {
+                                // Becoming a regular set - give it the next regular number
+                                let existingRegularCount = exercise.sets.filter { !$0.isWarmup && $0.id != set.id }.count
+                                set.setNumber = existingRegularCount + 1
+                            }
+                            
+                            // Now renumber all sets to ensure consistency
+                            let warmupSets = exercise.sets.filter { $0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+                            let regularSets = exercise.sets.filter { !$0.isWarmup }.sorted(by: { $0.setNumber < $1.setNumber })
+                            
+                            // Renumber warmup sets
+                            for (index, warmupSet) in warmupSets.enumerated() {
+                                warmupSet.setNumber = index + 1
+                            }
+                            
+                            // Renumber regular sets
+                            for (index, regularSet) in regularSets.enumerated() {
+                                regularSet.setNumber = index + 1
+                            }
+                            
+                            try? modelContext.save()
+                        }
+                    }
+                
+                // Previous workout data
+                if let previous = previousWorkoutData {
+                    Text("\(formatWeight(previous.weight)) × \(previous.reps)")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    Text("-")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            
+                // Weight Field with lbs label
+                HStack(spacing: 4) {
+                    #if os(iOS)
+                    AutoSelectTextField(
+                        placeholder: (previousWorkoutData ?? previousSetValues).map { formatWeight($0.weight) } ?? "0",
+                        text: $weight,
+                        keyboardType: .decimalPad,
+                        textAlignment: .center,
+                        font: .systemFont(ofSize: 16, weight: .medium)
+                    )
+                    .frame(width: 55, height: 32)
+                    .background(Color(UIColor.systemGray6))
+                    .cornerRadius(6)
+                    .onChange(of: weight) { _, newValue in
+                        if let value = Double(newValue) {
+                            set.weight = value
+                        } else if newValue.isEmpty, let previous = previousSetValues {
+                            set.weight = previous.weight
+                        }
+                    }
+                    #else
+                    TextField((previousWorkoutData ?? previousSetValues).map { formatWeight($0.weight) } ?? "0", text: $weight)
+                        .font(.system(size: 16, weight: .medium))
+                        .multilineTextAlignment(.center)
+                        .frame(width: 55)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 4)
+                        .cornerRadius(6)
+                        .onChange(of: weight) { _, newValue in
+                            if let value = Double(newValue) {
+                                set.weight = value
+                            } else if newValue.isEmpty, let previous = previousSetValues {
+                                set.weight = previous.weight
+                            }
+                        }
+                    #endif
+                    
+                    Text("lbs")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                }
+                .frame(width: 90, alignment: .center)
+            
+                // Reps Field
+                #if os(iOS)
+                AutoSelectTextField(
+                    placeholder: (previousWorkoutData ?? previousSetValues).map { "\($0.reps)" } ?? "0",
+                    text: $reps,
+                    keyboardType: .numberPad,
+                    textAlignment: .center,
+                    font: .systemFont(ofSize: 16, weight: .medium)
+                )
+                .frame(width: 50, height: 32)
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(6)
+                .onChange(of: reps) { _, newValue in
+                    if let value = Int(newValue) {
+                        set.reps = value
+                    } else if newValue.isEmpty, let previous = previousSetValues {
+                        set.reps = previous.reps
+                    }
+                }
+                .frame(width: 70, alignment: .center)
+                #else
+                TextField((previousWorkoutData ?? previousSetValues).map { "\($0.reps)" } ?? "0", text: $reps)
+                    .font(.system(size: 16, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .frame(width: 50)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 4)
+                    .cornerRadius(6)
+                    .onChange(of: reps) { _, newValue in
+                        if let value = Int(newValue) {
+                            set.reps = value
+                        } else if newValue.isEmpty, let previous = previousSetValues {
+                            set.reps = previous.reps
+                        }
+                    }
+                    .frame(width: 70, alignment: .center)
+                #endif
+            
+                // Complete button with failure indicator
+                VStack(spacing: 2) {
+                    ZStack {
+                        Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundColor(set.isCompleted ? DesignConstants.Colors.completedGreen() : .secondary)
+                            .frame(width: 40)
+                        
+                        if false { // Disabled: failure tracking
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    // Show 1RM for heavy sets (if enabled in settings)
+                    if set.isCompleted && show1RMEstimates {
+                        if !set.isWarmup && set.reps > 0 && set.reps < 12 && set.weight > 0 {
+                            // Simple Epley formula for 1RM estimation
+                            let oneRM = set.weight * (1 + Double(set.reps) / 30.0)
+                            VStack(spacing: 0) {
+                                Text("1RM")
+                                    .font(.system(size: 7, weight: .medium))
+                                    .foregroundColor(.secondary.opacity(0.8))
+                                Text("\(Int(oneRM))")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .onTapGesture {
+                    // Auto-fill empty fields with previous values (prefer previous workout data)
+                    let previous = previousWorkoutData ?? previousSetValues
+                    if weight.isEmpty, let prev = previous {
+                        weight = formatWeight(prev.weight)
+                        set.weight = prev.weight
+                    }
+                    if reps.isEmpty, let prev = previous {
+                        reps = "\(prev.reps)"
+                        set.reps = prev.reps
+                    }
+                    
+                    set.toggleCompleted()
+                    if set.isCompleted {
+                        onComplete()
+                        // Show RPE picker for non-warmup sets
+                        if !set.isWarmup {
+                            showingRPEPicker = true
+                        }
+                    }
+                    SettingsManager.shared.impactFeedback(style: .light)
+                }
+                .onLongPressGesture {
+                    if canDelete {
+                        SettingsManager.shared.impactFeedback(style: .medium)
+                        onDelete()
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                Color(UIColor.systemBackground)
+                    .shadow(color: isDragging ? Color.black.opacity(0.15) : Color.clear, radius: 5, x: 0, y: 2)
+            )
+            .offset(x: dragOffset)
+        .gesture(
+            isEditMode ? DragGesture()
+                .onChanged { value in
+                    withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
+                        isDragging = true
+                        // Add resistance at the edges and make it less sensitive
+                        let translation = value.translation.width
+                        let threshold: CGFloat = 30 // Minimum drag before responding
+                        
+                        if abs(translation) < threshold {
+                            dragOffset = 0
+                        } else if abs(translation) > 150 {
+                            // Apply resistance after 150px
+                            let resistance = (abs(translation) - 150) * 0.5
+                            dragOffset = translation > 0 ? 150 + resistance : -150 - resistance
+                        } else {
+                            dragOffset = translation
+                        }
+                    }
+                }
+                .onEnded { value in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        if abs(dragOffset) > 100 {
+                            if dragOffset > 0 {
+                                // Swipe right - duplicate
+                                duplicateSet()
+                                // Haptic feedback
+                                #if os(iOS)
+                                SettingsManager.shared.impactFeedback(style: .medium)
+                                #endif
+                            } else if canDelete {
+                                // Swipe left - delete
+                                onDelete()
+                                // Haptic feedback
+                                #if os(iOS)
+                                SettingsManager.shared.impactFeedback(style: .medium)
+                                #endif
+                            }
+                        }
+                        dragOffset = 0
+                        isDragging = false
+                    }
+                } : nil
+        )
+        }
+        .onAppear {
+            weight = set.weight > 0 ? formatWeight(set.weight) : ""
+            reps = set.reps > 0 ? "\(set.reps)" : ""
+        }
+        // RPE picker disabled for now
+    }
+    
+    private func duplicateSet() {
+        let newSet = WorkoutSet(
+            setNumber: (exercise.sets.map { $0.setNumber }.max() ?? 0) + 1,
+            weight: set.weight,
+            reps: set.reps,
+            isWarmup: set.isWarmup
+        )
+        exercise.sets.append(newSet)
+        try? modelContext.save()
+    }
+}
+
+/* Disabled: RPE tracking will be re-enabled with smart features
+struct RPEPickerView: View {
+    let set: WorkoutSet
+    @Binding var isPresented: Bool
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var settings = SettingsManager.shared
+    
+    let rpeDescriptions = [
+        1: "Very Light",
+        2: "Light",
+        3: "Light",
+        4: "Moderate",
+        5: "Moderate",
+        6: "Somewhat Hard",
+        7: "Hard",
+        8: "Very Hard",
+        9: "Extremely Hard",
+        10: "Maximum Effort"
+    ]
+    
+    let rpeDetails = [
+        1: "Could do many more reps",
+        2: "Warm-up weight",
+        3: "Easy, conversational",
+        4: "Starting to feel it",
+        5: "Steady working pace",
+        6: "Breathing harder",
+        7: "Challenging but doable",
+        8: "Near limit, 2-3 reps left",
+        9: "Maybe 1 rep left",
+        10: "Absolute maximum, failed or nearly failed"
+    ]
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button("Skip") {
+                    isPresented = false
+                }
+                .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("Rate Perceived Exertion")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button("Skip") {
+                    isPresented = false
+                }
+                .foregroundColor(.clear)
+                .disabled(true)
+            }
+            .padding()
+            
+            // RPE Grid
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(1...10, id: \.self) { rpe in
+                        Button(action: {
+                            set.rpe = rpe
+                            try? modelContext.save()
+                            settings.impactFeedback(style: .light)
+                            isPresented = false
+                        }) {
+                            VStack(spacing: 8) {
+                                Text("\(rpe)")
+                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .foregroundColor(rpeButtonColor(rpe))
+                                
+                                Text(rpeDescriptions[rpe] ?? "")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.primary)
+                                
+                                Text(rpeDetails[rpe] ?? "")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 90)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(rpeButtonColor(rpe).opacity(0.15))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(set.rpe == rpe ? rpeButtonColor(rpe) : Color.clear, lineWidth: 2)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+    
+    private func rpeButtonColor(_ rpe: Int) -> Color {
+        switch rpe {
+        case 1...3: return .green
+        case 4...5: return .yellow
+        case 6...7: return .orange
+        case 8...9: return .red
+        case 10: return .purple
+        default: return .secondary
+        }
+    }
+}
+*/ // End of disabled RPEPickerView
+
+#Preview {
+    do {
+        let container = try ModelContainer(for: WorkoutSession.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let session = WorkoutSession()
+        container.mainContext.insert(session)
+        
+        return ActiveWorkoutView(session: session)
+            .modelContainer(container)
+    } catch {
+        return Text("Failed to create preview")
+    }
+}

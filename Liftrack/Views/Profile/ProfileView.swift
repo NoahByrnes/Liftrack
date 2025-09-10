@@ -15,6 +15,7 @@ struct ProfileView: View {
     @State private var showingImagePicker = false
     @State private var editingName = false
     @State private var tempDisplayName = ""
+    @Environment(\.dismiss) private var dismiss
     #if os(iOS)
     @State private var selectedImage: PhotosPickerItem? = nil
     #endif
@@ -29,49 +30,65 @@ struct ProfileView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                GradientBackground()
-                
-                ScrollView {
+            ScrollView {
                     VStack(spacing: 24) {
                     // Profile Picture and Name Section
                     VStack(spacing: 16) {
-                        // Profile Picture
-                        Button(action: { showingImagePicker = true }) {
-                            ZStack {
-                                if !settings.profileImageData.isEmpty,
-                                   let uiImage = UIImage(data: settings.profileImageData) {
-                                    Image(uiImage: uiImage)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 100, height: 100)
-                                        .clipShape(Circle())
-                                } else {
-                                    Circle()
-                                        .fill(.ultraThinMaterial)
-                                        .frame(width: 100, height: 100)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                        )
-                                        .overlay(
-                                            Image(systemName: "person.crop.circle.fill")
-                                                .font(.system(size: 80))
-                                                .foregroundColor(settings.accentColor.color)
-                                        )
-                                }
-                                
-                                // Edit overlay
-                                Circle()
-                                    .fill(Color.black.opacity(0.3))
+                        // Profile Picture with soft circular design
+                        ZStack {
+                            if !settings.profileImageData.isEmpty,
+                               let uiImage = UIImage(data: settings.profileImageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
                                     .frame(width: 100, height: 100)
+                                    .clipShape(Circle())
                                     .overlay(
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 24))
-                                            .foregroundColor(.white)
+                                        Circle()
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 2
+                                            )
                                     )
-                                    .opacity(0.8)
+                            } else {
+                                Circle()
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                                    .frame(width: 100, height: 100)
+                                    .background(
+                                        Circle()
+                                            .fill(.ultraThinMaterial.opacity(0.3))
+                                    )
+                                    .overlay(
+                                        Image(systemName: "person.crop.circle.fill")
+                                            .font(.system(size: 80))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    )
                             }
+                            
+                            // Edit overlay
+                            Circle()
+                                .fill(Color.black.opacity(0.3))
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                )
+                                .opacity(0.8)
+                        }
+                        .onTapGesture {
+                            showingImagePicker = true
                         }
                         .scaleEffect(avatarScale)
                         .opacity(appearAnimation ? 1 : 0)
@@ -92,12 +109,30 @@ struct ProfileView: View {
                                             editingName = false
                                         }
                                     
-                                    Button("Done") {
-                                        settings.userDisplayName = tempDisplayName
-                                        editingName = false
-                                    }
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(settings.accentColor.color)
+                                    Text("Done")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .strokeBorder(
+                                                    LinearGradient(
+                                                        colors: [settings.accentColor.color.opacity(0.8), settings.accentColor.color.opacity(0.3)],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 1.5
+                                                )
+                                                .background(
+                                                    Capsule()
+                                                        .fill(.ultraThinMaterial.opacity(0.3))
+                                                )
+                                        )
+                                        .onTapGesture {
+                                            settings.userDisplayName = tempDisplayName
+                                            editingName = false
+                                        }
                                 }
                             } else {
                                 Text(settings.userDisplayName.isEmpty ? "Tap to set name" : settings.userDisplayName)
@@ -206,15 +241,36 @@ struct ProfileView: View {
                     
                     Spacer(minLength: DesignConstants.Spacing.tabBarClearance)
                 }
-            }
-            #if os(iOS)
-            .background(Color(UIColor.systemGroupedBackground))
-            #else
-            .background(Color.gray.opacity(0.1))
-            #endif
             #if os(iOS)
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Circle()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(.ultraThinMaterial.opacity(0.3))
+                        )
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                        )
+                        .contentShape(Circle())
+                        .onTapGesture {
+                            dismiss()
+                        }
+                }
+            }
             #endif
             .onAppear {
                 withAnimation {
@@ -234,8 +290,8 @@ struct ProfileView: View {
                 }
             }
             #endif
-            }
         }
+    }
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -258,7 +314,7 @@ struct StatsCard: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 24))
-                .foregroundColor(.white)
+                .foregroundColor(.white.opacity(0.9))
             
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -266,15 +322,24 @@ struct StatsCard: View {
             
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(.white.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(.ultraThinMaterial)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [color.opacity(0.4), color.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial.opacity(0.3))
+                )
         )
     }
 }
@@ -287,10 +352,26 @@ struct SettingsRow: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundColor(.white)
-                .frame(width: 40)
+            // Icon in soft circle
+            Circle()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [color.opacity(0.4), color.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .frame(width: 40, height: 40)
+                .background(
+                    Circle()
+                        .fill(.ultraThinMaterial.opacity(0.2))
+                )
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.9))
+                )
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -299,21 +380,30 @@ struct SettingsRow: View {
                 
                 Text(subtitle)
                     .font(.system(size: 13))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(.white.opacity(0.6))
             }
             
             Spacer()
             
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white.opacity(0.5))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.4))
         }
-        .padding(16)
-        .background(.ultraThinMaterial)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.2), .white.opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial.opacity(0.3))
+                )
         )
     }
 }

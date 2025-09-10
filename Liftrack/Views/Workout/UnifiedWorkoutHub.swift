@@ -45,7 +45,7 @@ struct UnifiedWorkoutHub: View {
                 }
                 .padding(.bottom)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.clear)
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingCreateProgram) {

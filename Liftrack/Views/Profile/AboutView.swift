@@ -16,7 +16,7 @@ struct AboutView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+                VStack(spacing: 24) {
                 // App Info
                 VStack(spacing: 16) {
                     Image(systemName: "figure.strengthtraining.traditional")
@@ -30,10 +30,11 @@ struct AboutView: View {
                     
                     Text("Liftrack")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
                     
                     Text("Version \(appVersion) (Build \(buildNumber))")
                         .font(.system(size: 16))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                 }
                 .padding(.top, 20)
                 
@@ -118,12 +119,6 @@ struct AboutView: View {
                 Color.clear.frame(height: DesignConstants.Spacing.tabBarClearance)
             }
             .padding(.vertical)
-        }
-        #if os(iOS)
-        .background(Color(UIColor.systemGroupedBackground))
-        #else
-        .background(Color.gray.opacity(0.1))
-        #endif
         .navigationTitle("About")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -145,6 +140,7 @@ struct WhatsNewItem: View {
                 .foregroundColor(.primary)
             
             Spacer()
+            }
         }
     }
 }

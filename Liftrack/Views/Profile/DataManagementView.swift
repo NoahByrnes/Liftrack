@@ -35,11 +35,6 @@ struct DataManagementView: View {
             }
             .padding()
         }
-        #if os(iOS)
-        .background(Color(UIColor.systemGroupedBackground))
-        #else
-        .background(Color.gray.opacity(0.1))
-        #endif
         .navigationTitle("Data & Backup")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

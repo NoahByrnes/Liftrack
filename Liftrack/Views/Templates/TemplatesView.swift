@@ -14,10 +14,7 @@ struct TemplatesView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                GradientBackground()
-                
-                ScrollView {
+            ScrollView {
                     VStack(spacing: 20) {
                     // Animated Header with visual hierarchy
                     HStack {
@@ -156,7 +153,7 @@ struct TemplatesView: View {
                 }
                 .padding(.bottom, DesignConstants.Spacing.tabBarClearance)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.clear)
             .onAppear {
                 withAnimation {
                     appearAnimation = true
@@ -168,7 +165,6 @@ struct TemplatesView: View {
             }
             .sheet(isPresented: $showingCreateProgram) {
                 ProgramCreationRouter()
-            }
             }
         }
     }

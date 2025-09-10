@@ -21,34 +21,63 @@ struct WorkoutSettingsView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+                VStack(spacing: 24) {
                 // Units Settings
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Units", systemImage: "scalemass.fill")
                         .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
-                    VStack(spacing: 0) {
-                        HStack {
-                            Image(systemName: "scalemass")
-                                .frame(width: 30)
-                                .foregroundColor(.indigo)
-                            
-                            Text("Weight Unit")
-                            
-                            Spacer()
-                            
-                            Picker("", selection: $settings.preferredWeightUnit) {
-                                Text("Pounds (lbs)").tag("lbs")
-                                Text("Kilograms (kg)").tag("kg")
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(width: 200)
+                    HStack {
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.indigo.opacity(0.4), Color.indigo.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.05))
+                            )
+                            .overlay(
+                                Image(systemName: "scalemass")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white.opacity(0.9))
+                            )
+                        
+                        Text("Weight Unit")
+                            .foregroundColor(.white)
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        Spacer()
+                        
+                        Picker("", selection: $settings.preferredWeightUnit) {
+                            Text("Pounds (lbs)").tag("lbs")
+                            Text("Kilograms (kg)").tag("kg")
                         }
-                        .padding()
+                        .pickerStyle(.segmented)
+                        .frame(width: 200)
                     }
-                    .background(Color(UIColor.secondarySystemGroupedBackground))
-                    .cornerRadius(16)
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.15), .white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(.ultraThinMaterial.opacity(0.3))
+                            )
+                    )
                 }
                 
                 // Timer Settings
@@ -306,7 +335,6 @@ struct WorkoutSettingsView: View {
             }
             .padding()
         }
-        .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Workout Settings")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

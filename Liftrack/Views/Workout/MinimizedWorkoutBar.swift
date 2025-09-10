@@ -11,39 +11,70 @@ struct MinimizedWorkoutBar: View {
     @Environment(\.modelContext) private var modelContext
     
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 12) {
             // Main expand area - takes up most of the bar
             HStack(spacing: 12) {
-                // Resume button
-                Image(systemName: "chevron.up.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(settings.accentColor.color)
+                // Resume button with soft circular design
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [settings.accentColor.color.opacity(0.6), settings.accentColor.color.opacity(0.2)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(settings.accentColor.color.opacity(0.1))
+                    )
+                    .overlay(
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                    )
                 
                 // Workout info
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.templateName)
                         .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
                         .lineLimit(1)
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "timer")
                             .font(.system(size: 10))
                         Text(formatTime(timerManager.elapsedTime))
                             .font(.system(size: 12, design: .monospaced))
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.6))
                 }
                 
                 Spacer()
                 
-                // Sets completed indicator
+                // Sets completed indicator with soft design
                 if let completedSets = completedSetsCount() {
                     Text("\(completedSets.completed)/\(completedSets.total)")
-                        .font(.system(size: 12, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(settings.accentColor.color.opacity(0.2))
-                        .cornerRadius(6)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [settings.accentColor.color.opacity(0.4), settings.accentColor.color.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                                .background(
+                                    Capsule()
+                                        .fill(settings.accentColor.color.opacity(0.1))
+                                )
+                        )
                 }
             }
             .contentShape(Rectangle())
@@ -53,24 +84,46 @@ struct MinimizedWorkoutBar: View {
                 showingActiveWorkout = true
             }
             
-            // Cancel button area with expanded touch target
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 20))
-                .foregroundColor(.secondary)
-                .frame(width: 44, height: 44) // Expanded touch area
-                .contentShape(Rectangle())
+            // Cancel button with soft circular design
+            Circle()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.red.opacity(0.3), .red.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(Color.red.opacity(0.05))
+                )
+                .overlay(
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                )
+                .contentShape(Circle())
                 .onTapGesture {
                     showingCancelAlert = true
                 }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.3), .white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(.ultraThinMaterial.opacity(0.3))
                 )
         )
         .padding(.horizontal)

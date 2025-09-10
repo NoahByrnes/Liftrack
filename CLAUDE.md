@@ -2,6 +2,61 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## iOS 26 and Xcode 26 Development
+
+### Xcode 26 Location
+Xcode 26.0 is installed at: `/Users/noahbyrnes/Downloads/Xcode.app`
+- Version: 26.0 (Build 17A321)
+- To use Xcode 26 for builds: `/Users/noahbyrnes/Downloads/Xcode.app/Contents/Developer/usr/bin/xcodebuild`
+- Standard Xcode 16.4 is at: `/Applications/Xcode.app`
+
+### Liquid Glass APIs (iOS 26+)
+Available in iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0:
+
+#### Glass Button Styles
+```swift
+Button("Text") {}
+    .buttonStyle(.glass)           // Regular glass button
+    .buttonStyle(.glassProminent)  // Prominent glass button
+```
+
+#### Glass Effects
+```swift
+// Apply glass effect to any view
+.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
+.glassEffect(.clear, in: shape)    // Clear glass variant
+.glassEffect(.identity)             // Identity glass effect
+
+// Container for optimizing multiple glass effects
+GlassEffectContainer {
+    // Views with glass effects
+}
+
+// Glass effect transitions
+.glassEffectTransition(.materialize)
+.glassEffectTransition(.matchedGeometry)
+.glassEffectTransition(.identity)
+```
+
+#### Important Notes
+- Always use `@available(iOS 26.0, *)` checks when using Liquid Glass APIs
+- Import only `SwiftUI` (not `SwiftUICore` directly - it's included)
+- Glass effects are not available on visionOS
+- Use `GlassEffectContainer` when applying multiple glass effects for performance
+
+### Building for iOS 26
+```bash
+# Build with Xcode 26 targeting iOS 26
+/Users/noahbyrnes/Downloads/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+    -project Liftrack.xcodeproj \
+    -scheme Liftrack \
+    -configuration Debug \
+    -destination 'platform=iOS Simulator,OS=26.0,name=iPhone 17' \
+    build
+```
+
+Available iOS 26 simulators: iPhone 17, iPhone 17 Pro, iPhone 17 Pro Max, iPhone Air, iPad (A16), iPad Air (M3), iPad Pro (M4)
+
 ## Project Overview
 
 Liftrack is a native iOS/macOS SwiftUI application supporting multiple Apple platforms (iOS 18.5+, macOS 15.5+, visionOS). The project uses Xcode's native build system and is configured as a universal app.
